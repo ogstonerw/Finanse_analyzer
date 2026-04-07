@@ -2,12 +2,14 @@ package api
 
 import (
 	"net/http"
+	"time"
 
 	"diploma-market-ai/02_product/backend/internal/assets"
 	"diploma-market-ai/02_product/backend/internal/auth"
 	"diploma-market-ai/02_product/backend/internal/forecasts"
 	"diploma-market-ai/02_product/backend/internal/regime"
 	"diploma-market-ai/02_product/backend/internal/storage"
+	"diploma-market-ai/02_product/backend/internal/users"
 )
 
 type App struct {
@@ -20,7 +22,8 @@ type App struct {
 }
 
 func NewApp(cfg Config, store *storage.Postgres) *App {
-	authService := auth.NewService(store)
+	userRepo := users.NewRepository(store)
+	authService := auth.NewService(userRepo, time.Duration(cfg.SessionTTLHours)*time.Hour)
 	assetsService := assets.NewService(store)
 	forecastsService := forecasts.NewService(store)
 	regimeService := regime.NewService(store)

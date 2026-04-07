@@ -2,7 +2,11 @@ package auth
 
 import (
 	"encoding/json"
+	"errors"
+	"net"
 	"net/http"
+
+	"diploma-market-ai/02_product/backend/internal/users"
 )
 
 type Handler struct {
@@ -20,10 +24,17 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.service.Register(r.Context(), input)
-	writeJSON(w, http.StatusAccepted, map[string]any{
-		"message": "register endpoint placeholder",
-		"status":  statusFromErr(err),
+	result, err := h.service.Register(r.Context(), input, extractSessionMeta(r))
+	if err != nil {
+		writeAuthError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"user_id":       result.UserID,
+		"email":         result.Email,
+		"session_token": result.SessionToken,
+		"expires_at":    result.ExpiresAt,
 	})
 }
 
@@ -34,18 +45,43 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.service.Login(r.Context(), input)
-	writeJSON(w, http.StatusAccepted, map[string]any{
-		"message": "login endpoint placeholder",
-		"status":  statusFromErr(err),
+	result, err := h.service.Login(r.Context(), input, extractSessionMeta(r))
+	if err != nil {
+		writeAuthError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"user_id":       result.UserID,
+		"email":         result.Email,
+		"session_token": result.SessionToken,
+		"expires_at":    result.ExpiresAt,
 	})
 }
 
-func statusFromErr(err error) string {
-	if err == nil {
-		return "ok"
+func extractSessionMeta(r *http.Request) users.SessionMeta {
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		ip = r.RemoteAddr
 	}
-	return err.Error()
+
+	return users.SessionMeta{
+		IP:        ip,
+		UserAgent: r.UserAgent(),
+	}
+}
+
+func writeAuthError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, ErrInvalidInput):
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+	case errors.Is(err, ErrEmailAlreadyExists):
+		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+	case errors.Is(err, ErrInvalidCredentials):
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": err.Error()})
+	default:
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
+	}
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {

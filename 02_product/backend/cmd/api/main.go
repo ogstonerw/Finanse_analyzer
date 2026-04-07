@@ -16,12 +16,15 @@ func main() {
 	cfg := api.LoadConfig()
 
 	store, err := storage.NewPostgres(storage.Config{
-		Host:     cfg.DatabaseHost,
-		Port:     cfg.DatabasePort,
-		User:     cfg.DatabaseUser,
-		Password: cfg.DatabasePassword,
-		Name:     cfg.DatabaseName,
-		SSLMode:  cfg.DatabaseSSLMode,
+		Host:            cfg.DatabaseHost,
+		Port:            cfg.DatabasePort,
+		User:            cfg.DatabaseUser,
+		Password:        cfg.DatabasePassword,
+		Name:            cfg.DatabaseName,
+		SSLMode:         cfg.DatabaseSSLMode,
+		MaxOpenConns:    cfg.DatabaseMaxOpenConns,
+		MaxIdleConns:    cfg.DatabaseMaxIdleConns,
+		ConnMaxLifetime: time.Duration(cfg.DatabaseConnMaxLifeMin) * time.Minute,
 	})
 	if err != nil {
 		log.Fatalf("init storage: %v", err)
@@ -36,6 +39,7 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	defer store.Close()
 
 	go func() {
 		log.Printf("backend listening on %s", cfg.Address())

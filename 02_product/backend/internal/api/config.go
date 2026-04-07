@@ -3,31 +3,40 @@ package api
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 type Config struct {
-	Host             string
-	Port             string
-	Environment      string
-	DatabaseHost     string
-	DatabasePort     string
-	DatabaseUser     string
-	DatabasePassword string
-	DatabaseName     string
-	DatabaseSSLMode  string
+	Host                   string
+	Port                   string
+	Environment            string
+	SessionTTLHours        int
+	DatabaseHost           string
+	DatabasePort           string
+	DatabaseUser           string
+	DatabasePassword       string
+	DatabaseName           string
+	DatabaseSSLMode        string
+	DatabaseMaxOpenConns   int
+	DatabaseMaxIdleConns   int
+	DatabaseConnMaxLifeMin int
 }
 
 func LoadConfig() Config {
 	return Config{
-		Host:             getEnv("APP_HOST", "0.0.0.0"),
-		Port:             getEnv("APP_PORT", "8080"),
-		Environment:      getEnv("APP_ENV", "development"),
-		DatabaseHost:     getEnv("DB_HOST", "localhost"),
-		DatabasePort:     getEnv("DB_PORT", "5432"),
-		DatabaseUser:     getEnv("DB_USER", "postgres"),
-		DatabasePassword: getEnv("DB_PASSWORD", "postgres"),
-		DatabaseName:     getEnv("DB_NAME", "market_ai"),
-		DatabaseSSLMode:  getEnv("DB_SSLMODE", "disable"),
+		Host:                   getEnv("APP_HOST", "0.0.0.0"),
+		Port:                   getEnv("APP_PORT", "8080"),
+		Environment:            getEnv("APP_ENV", "development"),
+		SessionTTLHours:        getEnvInt("APP_SESSION_TTL_HOURS", 24),
+		DatabaseHost:           getEnv("DB_HOST", "localhost"),
+		DatabasePort:           getEnv("DB_PORT", "5432"),
+		DatabaseUser:           getEnv("DB_USER", "postgres"),
+		DatabasePassword:       getEnv("DB_PASSWORD", "postgres"),
+		DatabaseName:           getEnv("DB_NAME", "market_ai"),
+		DatabaseSSLMode:        getEnv("DB_SSLMODE", "disable"),
+		DatabaseMaxOpenConns:   getEnvInt("DB_MAX_OPEN_CONNS", 10),
+		DatabaseMaxIdleConns:   getEnvInt("DB_MAX_IDLE_CONNS", 5),
+		DatabaseConnMaxLifeMin: getEnvInt("DB_CONN_MAX_LIFETIME_MINUTES", 30),
 	}
 }
 
@@ -40,4 +49,18 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func getEnvInt(key string, fallback int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return fallback
+	}
+
+	return parsed
 }
