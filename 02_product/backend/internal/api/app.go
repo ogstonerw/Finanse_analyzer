@@ -17,6 +17,7 @@ type App struct {
 	router           *http.ServeMux
 	authHandler      *auth.Handler
 	assetsHandler    *assets.Handler
+	sourcesHandler   *SourcesHandler
 	forecastsHandler *forecasts.Handler
 	regimeHandler    *regime.Handler
 }
@@ -25,6 +26,7 @@ func NewApp(cfg Config, store *storage.Postgres) *App {
 	userRepo := users.NewRepository(store)
 	authService := auth.NewService(userRepo, time.Duration(cfg.SessionTTLHours)*time.Hour)
 	assetsService := assets.NewService(store)
+	sourcesRepository := storage.NewSourcesRepository(store)
 	forecastsService := forecasts.NewService(store)
 	regimeService := regime.NewService(store)
 
@@ -33,6 +35,7 @@ func NewApp(cfg Config, store *storage.Postgres) *App {
 		router:           http.NewServeMux(),
 		authHandler:      auth.NewHandler(authService),
 		assetsHandler:    assets.NewHandler(assetsService),
+		sourcesHandler:   NewSourcesHandler(sourcesRepository),
 		forecastsHandler: forecasts.NewHandler(forecastsService),
 		regimeHandler:    regime.NewHandler(regimeService),
 	}
@@ -51,6 +54,8 @@ func (a *App) registerRoutes() {
 	a.router.HandleFunc("POST /api/v1/auth/register", a.authHandler.Register)
 	a.router.HandleFunc("POST /api/v1/auth/login", a.authHandler.Login)
 	a.router.HandleFunc("GET /api/v1/assets", a.assetsHandler.List)
+	a.router.HandleFunc("GET /api/v1/assets/{ticker}", a.assetsHandler.GetByTicker)
+	a.router.HandleFunc("GET /api/v1/sources", a.sourcesHandler.List)
 	a.router.HandleFunc("GET /api/v1/forecasts/latest", a.forecastsHandler.Latest)
 	a.router.HandleFunc("GET /api/v1/regime/current", a.regimeHandler.Current)
 }
