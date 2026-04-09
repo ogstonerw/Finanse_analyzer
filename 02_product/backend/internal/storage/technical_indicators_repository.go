@@ -3,9 +3,12 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
+
+var ErrTechnicalIndicatorNotFound = errors.New("technical indicator not found")
 
 type TechnicalIndicatorRecord struct {
 	ID                string
@@ -157,4 +160,50 @@ func (r *TechnicalIndicatorsRepository) ListByAsset(ctx context.Context, assetID
 	}
 
 	return items, nil
+}
+
+func (r *TechnicalIndicatorsRepository) GetLatestByAsset(ctx context.Context, assetID, timeframe string) (TechnicalIndicatorRecord, error) {
+	const query = `
+		SELECT
+			id,
+			asset_id,
+			indicator_time,
+			timeframe,
+			weekly_return,
+			rsi,
+			volatility,
+			trend_direction,
+			channel_position,
+			calculation_status,
+			created_at,
+			updated_at
+		FROM technical_indicators
+		WHERE asset_id = $1 AND timeframe = $2
+		ORDER BY indicator_time DESC
+		LIMIT 1
+	`
+
+	var item TechnicalIndicatorRecord
+	err := r.db.QueryRowContext(ctx, query, assetID, timeframe).Scan(
+		&item.ID,
+		&item.AssetID,
+		&item.IndicatorTime,
+		&item.Timeframe,
+		&item.WeeklyReturn,
+		&item.RSI,
+		&item.Volatility,
+		&item.TrendDirection,
+		&item.ChannelPosition,
+		&item.CalculationStatus,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return TechnicalIndicatorRecord{}, ErrTechnicalIndicatorNotFound
+		}
+		return TechnicalIndicatorRecord{}, fmt.Errorf("get latest technical indicator by asset: %w", err)
+	}
+
+	return item, nil
 }

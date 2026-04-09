@@ -11,6 +11,11 @@ type Config struct {
 	Port                   string
 	Environment            string
 	SessionTTLHours        int
+	AIMode                 string
+	AIProvider             string
+	AIModel                string
+	AIAPIEndpoint          string
+	AIAPIKey               string
 	DatabaseHost           string
 	DatabasePort           string
 	DatabaseUser           string
@@ -28,6 +33,11 @@ func LoadConfig() Config {
 		Port:                   getEnv("APP_PORT", "8080"),
 		Environment:            getEnv("APP_ENV", "development"),
 		SessionTTLHours:        getEnvInt("APP_SESSION_TTL_HOURS", 24),
+		AIMode:                 getEnv("AI_MODE", "fallback"),
+		AIProvider:             getEnv("AI_PROVIDER", "openai"),
+		AIModel:                getEnv("AI_MODEL", ""),
+		AIAPIEndpoint:          getEnv("AI_API_ENDPOINT", ""),
+		AIAPIKey:               getEnv("AI_API_KEY", ""),
 		DatabaseHost:           getEnv("DB_HOST", "localhost"),
 		DatabasePort:           getEnv("DB_PORT", "5432"),
 		DatabaseUser:           getEnv("DB_USER", "postgres"),

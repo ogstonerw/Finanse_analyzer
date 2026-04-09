@@ -8,9 +8,11 @@ import (
 	"syscall"
 	"time"
 
+	"diploma-market-ai/02_product/backend/internal/ai"
 	"diploma-market-ai/02_product/backend/internal/api"
 	"diploma-market-ai/02_product/backend/internal/collectors"
 	"diploma-market-ai/02_product/backend/internal/events"
+	"diploma-market-ai/02_product/backend/internal/forecasts"
 	"diploma-market-ai/02_product/backend/internal/indicators"
 	"diploma-market-ai/02_product/backend/internal/news"
 	"diploma-market-ai/02_product/backend/internal/prices"
@@ -67,7 +69,17 @@ func main() {
 	}
 	eventsSyncCancel()
 
-	app := api.NewApp(cfg, store, pricesService, indicatorsService, newsService, eventsService)
+	aiClient := ai.NewClient(ai.Config{
+		Mode:     cfg.AIMode,
+		Provider: cfg.AIProvider,
+		Model:    cfg.AIModel,
+		Endpoint: cfg.AIAPIEndpoint,
+		APIKey:   cfg.AIAPIKey,
+	})
+
+	forecastsService := forecasts.NewService(store, aiClient)
+
+	app := api.NewApp(cfg, store, pricesService, indicatorsService, newsService, eventsService, forecastsService)
 	server := &http.Server{
 		Addr:              cfg.Address(),
 		Handler:           app.Router(),

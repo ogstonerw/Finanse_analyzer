@@ -37,12 +37,12 @@ func NewApp(
 	indicatorsService *indicators.Service,
 	newsService *news.Service,
 	eventsService *events.Service,
+	forecastsService *forecasts.Service,
 ) *App {
 	userRepo := users.NewRepository(store)
 	authService := auth.NewService(userRepo, time.Duration(cfg.SessionTTLHours)*time.Hour)
 	assetsService := assets.NewService(store)
 	sourcesRepository := storage.NewSourcesRepository(store)
-	forecastsService := forecasts.NewService(store)
 	regimeService := regime.NewService(store)
 
 	app := &App{
@@ -80,6 +80,7 @@ func (a *App) registerRoutes() {
 	a.router.HandleFunc("GET /api/v1/news", a.newsHandler.List)
 	a.router.HandleFunc("GET /api/v1/news/{id}", a.newsHandler.GetByID)
 	a.router.HandleFunc("GET /api/v1/events", a.eventsHandler.List)
+	a.router.HandleFunc("POST /api/v1/forecasts/generate", a.forecastsHandler.Generate)
 	a.router.HandleFunc("GET /api/v1/forecasts/latest", a.forecastsHandler.Latest)
 	a.router.HandleFunc("GET /api/v1/regime/current", a.regimeHandler.Current)
 }

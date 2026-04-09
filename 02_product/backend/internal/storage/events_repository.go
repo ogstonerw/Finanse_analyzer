@@ -3,9 +3,12 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
+
+var ErrEventNotFound = errors.New("event not found")
 
 type EventRecord struct {
 	ID          string
@@ -145,4 +148,97 @@ func (r *EventsRepository) List(ctx context.Context) ([]EventRecord, error) {
 	}
 
 	return items, nil
+}
+
+func (r *EventsRepository) GetByID(ctx context.Context, id string) (EventRecord, error) {
+	const query = `
+		SELECT
+			e.id,
+			e.news_item_id,
+			ni.title,
+			e.asset_id,
+			a.ticker,
+			a.name,
+			e.event_type,
+			e.summary,
+			e.extracted_at,
+			e.created_at,
+			e.updated_at
+		FROM events e
+		INNER JOIN news_items ni ON ni.id = e.news_item_id
+		LEFT JOIN assets a ON a.id = e.asset_id
+		WHERE e.id = $1
+	`
+
+	var item EventRecord
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&item.ID,
+		&item.NewsItemID,
+		&item.NewsTitle,
+		&item.AssetID,
+		&item.AssetTicker,
+		&item.AssetName,
+		&item.EventType,
+		&item.Summary,
+		&item.ExtractedAt,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return EventRecord{}, ErrEventNotFound
+		}
+		return EventRecord{}, fmt.Errorf("get event by id: %w", err)
+	}
+
+	return item, nil
+}
+
+func (r *EventsRepository) GetLatestRelevant(ctx context.Context, assetID string) (EventRecord, error) {
+	const query = `
+		SELECT
+			e.id,
+			e.news_item_id,
+			ni.title,
+			e.asset_id,
+			a.ticker,
+			a.name,
+			e.event_type,
+			e.summary,
+			e.extracted_at,
+			e.created_at,
+			e.updated_at
+		FROM events e
+		INNER JOIN news_items ni ON ni.id = e.news_item_id
+		LEFT JOIN assets a ON a.id = e.asset_id
+		WHERE e.asset_id = $1 OR e.asset_id IS NULL
+		ORDER BY
+			CASE WHEN e.asset_id = $1 THEN 0 ELSE 1 END,
+			e.extracted_at DESC,
+			e.created_at DESC
+		LIMIT 1
+	`
+
+	var item EventRecord
+	err := r.db.QueryRowContext(ctx, query, assetID).Scan(
+		&item.ID,
+		&item.NewsItemID,
+		&item.NewsTitle,
+		&item.AssetID,
+		&item.AssetTicker,
+		&item.AssetName,
+		&item.EventType,
+		&item.Summary,
+		&item.ExtractedAt,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return EventRecord{}, ErrEventNotFound
+		}
+		return EventRecord{}, fmt.Errorf("get latest relevant event: %w", err)
+	}
+
+	return item, nil
 }
