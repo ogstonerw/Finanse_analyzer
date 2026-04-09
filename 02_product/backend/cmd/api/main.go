@@ -10,6 +10,7 @@ import (
 
 	"diploma-market-ai/02_product/backend/internal/api"
 	"diploma-market-ai/02_product/backend/internal/collectors"
+	"diploma-market-ai/02_product/backend/internal/indicators"
 	"diploma-market-ai/02_product/backend/internal/prices"
 	"diploma-market-ai/02_product/backend/internal/storage"
 )
@@ -40,7 +41,15 @@ func main() {
 	}
 	priceSyncCancel()
 
-	app := api.NewApp(cfg, store, pricesService)
+	indicatorsService := indicators.NewService(store)
+
+	indicatorSyncCtx, indicatorSyncCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	if err := indicatorsService.SyncAllDailyIndicators(indicatorSyncCtx); err != nil {
+		log.Printf("technical indicators sync warning: %v", err)
+	}
+	indicatorSyncCancel()
+
+	app := api.NewApp(cfg, store, pricesService, indicatorsService)
 	server := &http.Server{
 		Addr:              cfg.Address(),
 		Handler:           app.Router(),
