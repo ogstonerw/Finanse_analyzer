@@ -6,7 +6,7 @@
 
 - точка входа `cmd/api/main.go`;
 - каркас HTTP API на стандартной библиотеке Go;
-- подключение к PostgreSQL через `database/sql`;
+- подключение к PostgreSQL через `database/sql` и драйвер `github.com/lib/pq`;
 - загрузка конфигурации из переменных окружения и примера `.env`;
 - миграции для таблиц `users` и `user_sessions`;
 - storage/repository слой для пользователей и сессий;

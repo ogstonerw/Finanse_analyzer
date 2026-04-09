@@ -2,7 +2,7 @@
 
 ## Выполнено
 - Прочитаны файлы `AGENTS.md`, `00_rules/master_codex_brief.md`, `00_rules/project_rules.md`, `00_rules/current_status.md`, `02_product/docs/architecture.md`, `02_product/docs/database_schema.md`.
-- В backend подключен PostgreSQL через `database/sql` и драйвер `pgx`.
+- В backend подключен PostgreSQL через `database/sql` и драйвер `github.com/lib/pq`.
 - Добавлена базовая конфигурация подключения к БД и пример env-файла.
 - Созданы начальные SQL-миграции для таблиц `users` и `user_sessions`.
 - Реализована первая рабочая вертикаль `register/login` по `email + password`.
@@ -15,7 +15,7 @@
 - Обновлен backend README с описанием env, миграций и запуска.
 
 ## Принятые решения
-- Для подключения к PostgreSQL выбран `pgx` через стандартный интерфейс `database/sql`.
+- Для подключения к PostgreSQL выбран драйвер `github.com/lib/pq` через стандартный интерфейс `database/sql`.
 - Для хеширования паролей используется `bcrypt`.
 - Refresh-flow, email verification и расширенная бизнес-логика отложены на следующий этап.
 
