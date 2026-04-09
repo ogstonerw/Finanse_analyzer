@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"diploma-market-ai/02_product/backend/internal/api"
+	"diploma-market-ai/02_product/backend/internal/collectors"
+	"diploma-market-ai/02_product/backend/internal/prices"
 	"diploma-market-ai/02_product/backend/internal/storage"
 )
 
@@ -30,7 +32,15 @@ func main() {
 		log.Fatalf("init storage: %v", err)
 	}
 
-	app := api.NewApp(cfg, store)
+	pricesService := prices.NewService(store, collectors.NewMOEXCollector(nil))
+
+	priceSyncCtx, priceSyncCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	if err := pricesService.SyncSupportedDailyCandles(priceSyncCtx); err != nil {
+		log.Printf("moex price sync warning: %v", err)
+	}
+	priceSyncCancel()
+
+	app := api.NewApp(cfg, store, pricesService)
 	server := &http.Server{
 		Addr:              cfg.Address(),
 		Handler:           app.Router(),
