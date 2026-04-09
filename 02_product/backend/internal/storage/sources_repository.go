@@ -3,9 +3,13 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
+
+var ErrSourceNotFound = errors.New("source not found")
 
 type SourceRecord struct {
 	ID              string    `json:"id"`
@@ -63,4 +67,32 @@ func (r *SourcesRepository) List(ctx context.Context) ([]SourceRecord, error) {
 	}
 
 	return items, nil
+}
+
+func (r *SourcesRepository) GetByBaseURL(ctx context.Context, baseURL string) (SourceRecord, error) {
+	const query = `
+		SELECT id, name, base_url, source_type, access_method, status, update_frequency, last_checked_at
+		FROM sources
+		WHERE base_url = $1
+	`
+
+	var item SourceRecord
+	err := r.db.QueryRowContext(ctx, query, strings.TrimSpace(baseURL)).Scan(
+		&item.ID,
+		&item.Name,
+		&item.BaseURL,
+		&item.SourceType,
+		&item.AccessMethod,
+		&item.Status,
+		&item.UpdateFrequency,
+		&item.LastCheckedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return SourceRecord{}, ErrSourceNotFound
+		}
+		return SourceRecord{}, fmt.Errorf("get source by base url: %w", err)
+	}
+
+	return item, nil
 }

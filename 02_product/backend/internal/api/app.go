@@ -6,8 +6,10 @@ import (
 
 	"diploma-market-ai/02_product/backend/internal/assets"
 	"diploma-market-ai/02_product/backend/internal/auth"
+	"diploma-market-ai/02_product/backend/internal/events"
 	"diploma-market-ai/02_product/backend/internal/forecasts"
 	"diploma-market-ai/02_product/backend/internal/indicators"
+	"diploma-market-ai/02_product/backend/internal/news"
 	"diploma-market-ai/02_product/backend/internal/prices"
 	"diploma-market-ai/02_product/backend/internal/regime"
 	"diploma-market-ai/02_product/backend/internal/storage"
@@ -22,11 +24,20 @@ type App struct {
 	indicatorsHandler *indicators.Handler
 	pricesHandler     *prices.Handler
 	sourcesHandler    *SourcesHandler
+	newsHandler       *news.Handler
+	eventsHandler     *events.Handler
 	forecastsHandler  *forecasts.Handler
 	regimeHandler     *regime.Handler
 }
 
-func NewApp(cfg Config, store *storage.Postgres, pricesService *prices.Service, indicatorsService *indicators.Service) *App {
+func NewApp(
+	cfg Config,
+	store *storage.Postgres,
+	pricesService *prices.Service,
+	indicatorsService *indicators.Service,
+	newsService *news.Service,
+	eventsService *events.Service,
+) *App {
 	userRepo := users.NewRepository(store)
 	authService := auth.NewService(userRepo, time.Duration(cfg.SessionTTLHours)*time.Hour)
 	assetsService := assets.NewService(store)
@@ -42,6 +53,8 @@ func NewApp(cfg Config, store *storage.Postgres, pricesService *prices.Service, 
 		indicatorsHandler: indicators.NewHandler(indicatorsService),
 		pricesHandler:     prices.NewHandler(pricesService),
 		sourcesHandler:    NewSourcesHandler(sourcesRepository),
+		newsHandler:       news.NewHandler(newsService),
+		eventsHandler:     events.NewHandler(eventsService),
 		forecastsHandler:  forecasts.NewHandler(forecastsService),
 		regimeHandler:     regime.NewHandler(regimeService),
 	}
@@ -64,6 +77,9 @@ func (a *App) registerRoutes() {
 	a.router.HandleFunc("GET /api/v1/assets/{ticker}/indicators", a.indicatorsHandler.ListByTicker)
 	a.router.HandleFunc("GET /api/v1/assets/{ticker}/prices", a.pricesHandler.ListByTicker)
 	a.router.HandleFunc("GET /api/v1/sources", a.sourcesHandler.List)
+	a.router.HandleFunc("GET /api/v1/news", a.newsHandler.List)
+	a.router.HandleFunc("GET /api/v1/news/{id}", a.newsHandler.GetByID)
+	a.router.HandleFunc("GET /api/v1/events", a.eventsHandler.List)
 	a.router.HandleFunc("GET /api/v1/forecasts/latest", a.forecastsHandler.Latest)
 	a.router.HandleFunc("GET /api/v1/regime/current", a.regimeHandler.Current)
 }

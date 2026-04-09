@@ -1,30 +1,50 @@
 # Backend
 
-Минимальный backend для платформы анализа и прогнозирования реакции фондового рынка с базовой вертикалью авторизации, справочниками `assets` и `sources`, загрузкой дневных свечей из MOEX ISS и расчетом базовых технических индикаторов.
+Минимальный backend платформы анализа и прогнозирования реакции фондового рынка. Текущий MVP включает базовую авторизацию, справочники `assets` и `sources`, загрузку дневных свечей из MOEX ISS, расчёт технических индикаторов, а также контур `news_items` и `events` на официальном источнике Банка России.
 
 ## Что включено
 
 - точка входа `cmd/api/main.go`;
-- каркас HTTP API на стандартной библиотеке Go;
-- подключение к PostgreSQL через `database/sql` и драйвер `github.com/lib/pq`;
-- загрузка конфигурации из переменных окружения и примера `.env`;
-- миграции для таблиц `users`, `user_sessions`, `assets`, `sources`, `price_candles`, `technical_indicators`;
-- storage/repository слой для пользователей, сессий, активов, источников, свечей и индикаторов;
-- модули `auth`, `users`, `assets`, `prices`, `indicators`, `collectors`, `forecasts`, `regime`, `storage`;
-- справочник активов первой версии платформы;
-- справочник источников данных на основе зафиксированного реестра проекта;
-- базовая загрузка исторических дневных свечей по `IMOEX`, `SBER`, `LKOH`, `GAZP`, `YDEX` через официальный MOEX ISS;
-- базовый расчет технических индикаторов по дневным свечам из `price_candles`;
-- минимальные маршруты:
-  - `POST /api/v1/auth/register`
-  - `POST /api/v1/auth/login`
-  - `GET /api/v1/assets`
-  - `GET /api/v1/assets/{ticker}`
-  - `GET /api/v1/assets/{ticker}/indicators`
-  - `GET /api/v1/assets/{ticker}/prices`
-  - `GET /api/v1/sources`
-  - `GET /api/v1/forecasts/latest`
-  - `GET /api/v1/regime/current`
+- HTTP API на стандартной библиотеке Go;
+- PostgreSQL через `database/sql` и драйвер `github.com/lib/pq`;
+- конфигурация через переменные окружения;
+- SQL-миграции для `users`, `user_sessions`, `assets`, `sources`, `price_candles`, `technical_indicators`, `news_items`, `events`;
+- storage/repository слой для пользователей, сессий, активов, источников, свечей, индикаторов, новостей и событий;
+- модули `auth`, `users`, `assets`, `prices`, `indicators`, `news`, `events`, `collectors`, `forecasts`, `regime`, `storage`.
+
+## Сущности MVP
+
+- `assets` хранит базовый перечень целевых инструментов и внешних факторов MVP.
+- `sources` хранит зафиксированные источники данных проекта.
+- `price_candles` хранит дневные исторические свечи по поддерживаемым активам.
+- `technical_indicators` хранит рассчитанные признаки по дневным свечам.
+- `news_items` хранит нормализованные новости: `title`, `summary/body`, `source_id`, `published_at`, `collected_at`, `url`.
+- `events` хранит базовые события, извлечённые из новостей: `asset_id` при наличии связи, `event_type`, `summary`, `extracted_at`.
+
+## Источники данных
+
+- Исторические цены загружаются из официального MOEX ISS.
+- Для MVP-новостей используется официальный источник `Bank of Russia Monetary Policy Decisions` с `https://www.cbr.ru/eng/dkp/mp_dec/`.
+- При старте backend выполняет базовую синхронизацию свечей, затем расчёт индикаторов, затем загрузку новостей и rule-based извлечение событий.
+
+## Индикаторы
+
+По дневным свечам рассчитываются:
+
+- `RSI(14)`
+- недельная доходность
+- историческая волатильность
+- направление тренда
+- положение цены в локальном диапазоне
+
+Если истории недостаточно, числовые поля остаются `null`, а состояние фиксируется через `calculation_status`.
+
+## News и Events
+
+- Новости нормализуются в единую структуру без сложного NLP.
+- Для MVP используется простая классификация событий по ключевым словам.
+- Возможные типы включают `key_rate_cut`, `key_rate_hold`, `key_rate_hike`, `monetary_policy`, `general_news` и несколько базовых категорий для корпоративных и сырьевых новостей.
+- Если новость не удаётся явно связать с активом, `asset_id` в событии остаётся `null`.
 
 ## Переменные окружения
 
@@ -46,7 +66,7 @@
 
 ## Миграции
 
-В каталоге `migrations/` добавлены начальные SQL-миграции:
+В каталоге `migrations/` находятся:
 
 - `001_create_users.sql`
 - `002_create_user_sessions.sql`
@@ -54,28 +74,8 @@
 - `004_create_sources.sql`
 - `005_create_price_candles.sql`
 - `006_create_technical_indicators.sql`
-
-На текущем этапе они применяются любым удобным инструментом миграций или вручную через `psql`.
-
-## Справочники
-
-- `assets` хранит базовый перечень целевых инструментов и внешних факторов MVP: индекс, акции и сырьевые активы.
-- `sources` хранит стартовый каталог источников данных проекта с типом источника, способом доступа, статусом и периодичностью обновления.
-- `price_candles` хранит дневные исторические свечи по активам из поддерживаемого набора MOEX.
-- `technical_indicators` хранит рассчитанные технические признаки по дневным свечам.
-
-## Загрузка цен
-
-- При старте backend выполняет одну базовую синхронизацию дневных свечей из официального MOEX ISS.
-- Для MVP используется явный маппинг маршрутов MOEX: `IMOEX -> stock/index/SNDX`, `SBER/LKOH/GAZP/YDEX -> stock/shares/TQBR`.
-- Повторный запуск не дублирует уже загруженные свечи: записи обновляются по ключу `asset_id + timeframe + candle_time`.
-
-## Индикаторы
-
-- После синхронизации цен backend рассчитывает индикаторы на основе уже сохраненных дневных свечей.
-- Для MVP рассчитываются `RSI(14)`, недельная доходность, историческая волатильность, направление тренда и положение цены в локальном диапазоне.
-- Если для конкретной даты данных недостаточно, числовые поля сохраняются как `null`, а состояние расчета помечается через `calculation_status`.
-- Для `calculation_status` используются состояния `ready`, `partial` и `insufficient_data`, чтобы API явно показывал полноту расчета по дате.
+- `007_create_news_items.sql`
+- `008_create_events.sql`
 
 ## Запуск
 
@@ -85,18 +85,21 @@ go mod tidy
 go run ./cmd/api
 ```
 
-## Базовые маршруты
+## Основные маршруты
 
-- `POST /api/v1/auth/register` — регистрация пользователя по `email` и `password`
-- `POST /api/v1/auth/login` — вход пользователя по `email` и `password`
-- `GET /api/v1/assets` — список активов из справочника
-- `GET /api/v1/assets/{ticker}` — карточка актива по тикеру
-- `GET /api/v1/assets/{ticker}/indicators` — история рассчитанных индикаторов по активу со статусом полноты расчета по каждой дате
-- `GET /api/v1/assets/{ticker}/prices` — список дневных свечей по активу
-- `GET /api/v1/sources` — список источников данных из справочника
-- `GET /api/v1/forecasts/latest` — последняя прогнозная запись-заглушка
-- `GET /api/v1/regime/current` — текущее состояние режима рынка-заглушка
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `GET /api/v1/assets`
+- `GET /api/v1/assets/{ticker}`
+- `GET /api/v1/assets/{ticker}/prices`
+- `GET /api/v1/assets/{ticker}/indicators`
+- `GET /api/v1/sources`
+- `GET /api/v1/news`
+- `GET /api/v1/news/{id}`
+- `GET /api/v1/events`
+- `GET /api/v1/forecasts/latest`
+- `GET /api/v1/regime/current`
 
 ## Статус
 
-Реализована первая рабочая вертикаль `auth + users/user_sessions`, read-only справочники `assets` и `sources`, базовая загрузка дневных исторических цен из MOEX ISS в `price_candles` и расчет MVP-индикаторов в `technical_indicators`. Планировщик, realtime-обновление, сложные сигналы, AI-интеграция, новости, прогнозы и расширенная бизнес-логика пока не реализованы.
+Реализована рабочая основа backend: авторизация, справочники, исторические цены, технические индикаторы, MVP-контур новостей и базовых событий. Планировщик, realtime-обновление, sentiment scoring, importance scoring, AI-интеграция и сложная прогнозная логика пока не реализованы.

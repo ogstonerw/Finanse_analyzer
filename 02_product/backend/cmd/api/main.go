@@ -10,7 +10,9 @@ import (
 
 	"diploma-market-ai/02_product/backend/internal/api"
 	"diploma-market-ai/02_product/backend/internal/collectors"
+	"diploma-market-ai/02_product/backend/internal/events"
 	"diploma-market-ai/02_product/backend/internal/indicators"
+	"diploma-market-ai/02_product/backend/internal/news"
 	"diploma-market-ai/02_product/backend/internal/prices"
 	"diploma-market-ai/02_product/backend/internal/storage"
 )
@@ -49,7 +51,23 @@ func main() {
 	}
 	indicatorSyncCancel()
 
-	app := api.NewApp(cfg, store, pricesService, indicatorsService)
+	newsService := news.NewService(store, collectors.NewCBRMonetaryPolicyCollector(nil))
+
+	newsSyncCtx, newsSyncCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	if err := newsService.SyncLatest(newsSyncCtx); err != nil {
+		log.Printf("news sync warning: %v", err)
+	}
+	newsSyncCancel()
+
+	eventsService := events.NewService(store)
+
+	eventsSyncCtx, eventsSyncCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	if err := eventsService.SyncFromNews(eventsSyncCtx); err != nil {
+		log.Printf("events sync warning: %v", err)
+	}
+	eventsSyncCancel()
+
+	app := api.NewApp(cfg, store, pricesService, indicatorsService, newsService, eventsService)
 	server := &http.Server{
 		Addr:              cfg.Address(),
 		Handler:           app.Router(),
