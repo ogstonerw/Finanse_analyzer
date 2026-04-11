@@ -248,6 +248,88 @@ func (r *ForecastsRepository) GetLatest(ctx context.Context) (ForecastRecord, er
 	return item, nil
 }
 
+func (r *ForecastsRepository) ListRecent(ctx context.Context, limit int) ([]ForecastRecord, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+
+	const query = `
+		SELECT
+			f.id,
+			f.asset_id,
+			a.ticker,
+			a.name,
+			f.event_id,
+			e.event_type,
+			e.summary,
+			f.forecast_horizon,
+			f.forecast_time,
+			f.direction_label,
+			f.signal_strength,
+			f.confidence_score,
+			f.explanation,
+			f.ai_mode,
+			f.model_name,
+			f.market_context_label,
+			f.market_context_score,
+			f.market_context_explanation,
+			f.key_factors_json,
+			f.prepared_request_json,
+			f.created_at,
+			f.updated_at
+		FROM forecasts f
+		INNER JOIN assets a ON a.id = f.asset_id
+		LEFT JOIN events e ON e.id = f.event_id
+		ORDER BY f.forecast_time DESC, f.created_at DESC
+		LIMIT $1
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list recent forecasts: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]ForecastRecord, 0, limit)
+	for rows.Next() {
+		var item ForecastRecord
+		if err := rows.Scan(
+			&item.ID,
+			&item.AssetID,
+			&item.AssetTicker,
+			&item.AssetName,
+			&item.EventID,
+			&item.EventType,
+			&item.EventSummary,
+			&item.ForecastHorizon,
+			&item.ForecastTime,
+			&item.DirectionLabel,
+			&item.SignalStrength,
+			&item.ConfidenceScore,
+			&item.Explanation,
+			&item.AIMode,
+			&item.ModelName,
+			&item.MarketContextLabel,
+			&item.MarketContextScore,
+			&item.MarketContextExplanation,
+			&item.KeyFactorsJSON,
+			&item.PreparedRequestJSON,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan recent forecast: %w", err)
+		}
+
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate recent forecasts: %w", err)
+	}
+
+	return items, nil
+}
+
 func jsonValueOrEmptyArray(value json.RawMessage) any {
 	if len(value) == 0 {
 		return "[]"

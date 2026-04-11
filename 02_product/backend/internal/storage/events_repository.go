@@ -14,6 +14,7 @@ type EventRecord struct {
 	ID          string
 	NewsItemID  string
 	NewsTitle   string
+	PublishedAt time.Time
 	AssetID     sql.NullString
 	AssetTicker sql.NullString
 	AssetName   sql.NullString
@@ -241,4 +242,66 @@ func (r *EventsRepository) GetLatestRelevant(ctx context.Context, assetID string
 	}
 
 	return item, nil
+}
+
+func (r *EventsRepository) ListRecent(ctx context.Context, limit int) ([]EventRecord, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+
+	const query = `
+		SELECT
+			e.id,
+			e.news_item_id,
+			ni.title,
+			ni.published_at,
+			e.asset_id,
+			a.ticker,
+			a.name,
+			e.event_type,
+			e.summary,
+			e.extracted_at,
+			e.created_at,
+			e.updated_at
+		FROM events e
+		INNER JOIN news_items ni ON ni.id = e.news_item_id
+		LEFT JOIN assets a ON a.id = e.asset_id
+		ORDER BY ni.published_at DESC, e.extracted_at DESC, e.created_at DESC
+		LIMIT $1
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list recent events: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]EventRecord, 0, limit)
+	for rows.Next() {
+		var item EventRecord
+		if err := rows.Scan(
+			&item.ID,
+			&item.NewsItemID,
+			&item.NewsTitle,
+			&item.PublishedAt,
+			&item.AssetID,
+			&item.AssetTicker,
+			&item.AssetName,
+			&item.EventType,
+			&item.Summary,
+			&item.ExtractedAt,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan recent event: %w", err)
+		}
+
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate recent events: %w", err)
+	}
+
+	return items, nil
 }

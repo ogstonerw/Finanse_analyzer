@@ -28,6 +28,7 @@ type App struct {
 	eventsHandler     *events.Handler
 	forecastsHandler  *forecasts.Handler
 	regimeHandler     *regime.Handler
+	dashboardHandler  *DashboardHandler
 }
 
 func NewApp(
@@ -57,6 +58,7 @@ func NewApp(
 		eventsHandler:     events.NewHandler(eventsService),
 		forecastsHandler:  forecasts.NewHandler(forecastsService),
 		regimeHandler:     regime.NewHandler(regimeService),
+		dashboardHandler:  NewDashboardHandler(store, regimeService),
 	}
 
 	app.registerRoutes()
@@ -83,6 +85,7 @@ func (a *App) registerRoutes() {
 	a.router.HandleFunc("POST /api/v1/forecasts/generate", a.forecastsHandler.Generate)
 	a.router.HandleFunc("GET /api/v1/forecasts/latest", a.forecastsHandler.Latest)
 	a.router.HandleFunc("GET /api/v1/regime/current", a.regimeHandler.Current)
+	a.router.HandleFunc("GET /api/v1/dashboard/summary", a.dashboardHandler.Summary)
 }
 
 func (a *App) handleHealth(w http.ResponseWriter, _ *http.Request) {
