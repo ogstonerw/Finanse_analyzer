@@ -28,7 +28,7 @@ export function EventsListBlock({ items, kind, title }) {
       <div className="stack-list">
         {items.map((item) => {
           const itemKind = kind === "mixed" ? item.kind : kind;
-          const typeLabel = itemKind === "news" ? "News" : getEventTypeLabel(item.event_type);
+          const typeLabel = itemKind === "news" ? "Новость" : getEventTypeLabel(item.event_type);
           const titleText = itemKind === "news" ? item.title : item.news_title || item.title;
           const summaryText =
             itemKind === "news"

@@ -33,24 +33,24 @@ export function LoginPage({ onLogin }) {
       <div className="login-visual">
         <div>
           <p className="page-eyebrow">Market Reaction Analytics Platform</p>
-          <h2 className="hero-title">AI platform for market reaction analysis</h2>
+          <h2 className="hero-title">Платформа анализа реакции фондового рынка</h2>
           <p className="hero-text">
-            Open-source news, macro and market data combined into short-term forecasts и
-            интерпретируемый режим рынка.
+            Открытые новости, макроэкономические и рыночные данные объединяются в краткосрочные
+            прогнозы и интерпретируемый режим рынка.
           </p>
         </div>
 
         <div className="login-highlight-grid">
           <article className="login-highlight">
-            <strong>News-driven signals</strong>
+            <strong>Сигналы на основе событий</strong>
             <p className="muted-text">Лента событий и новостей, привязанная к активам и сигналам.</p>
           </article>
           <article className="login-highlight">
-            <strong>Market regime indicator</strong>
+            <strong>Кризисометр рынка</strong>
             <p className="muted-text">Кризисометр и краткое объяснение текущего состояния рынка.</p>
           </article>
           <article className="login-highlight">
-            <strong>Forecast history</strong>
+            <strong>История прогнозов</strong>
             <p className="muted-text">Последние сгенерированные сигналы с уверенностью и контекстом.</p>
           </article>
         </div>

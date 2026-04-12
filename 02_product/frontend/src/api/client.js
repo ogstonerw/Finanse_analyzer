@@ -23,7 +23,16 @@ export async function apiRequest(path, options = {}) {
     requestOptions.body = JSON.stringify(body);
   }
 
-  const response = await fetch(buildUrl(path), requestOptions);
+  let response;
+
+  try {
+    response = await fetch(buildUrl(path), requestOptions);
+  } catch (error) {
+    throw new Error(
+      "Не удалось подключиться к backend API. Проверьте, что backend запущен и доступен по локальному адресу."
+    );
+  }
+
   const payload = await readPayload(response);
 
   if (!response.ok) {

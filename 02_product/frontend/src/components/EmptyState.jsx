@@ -1,7 +1,7 @@
-export function EmptyState({ action, description, title }) {
+export function EmptyState({ action, description, title, variant = "neutral" }) {
   return (
-    <div className="card empty-state">
-      <div className="empty-state-icon" aria-hidden="true">
+    <div className={`card empty-state empty-state-${variant}`}>
+      <div className={`empty-state-icon empty-state-icon-${variant}`} aria-hidden="true">
         ?
       </div>
       <h3 className="section-title">{title}</h3>

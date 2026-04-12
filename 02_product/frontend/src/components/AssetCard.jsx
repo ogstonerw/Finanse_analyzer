@@ -53,11 +53,11 @@ export function AssetCard({ asset }) {
           <dd>{asset.latest_indicator?.rsi ?? "-"}</dd>
         </div>
         <div>
-          <dt>Volatility</dt>
+          <dt>Волатильность</dt>
           <dd>{asset.latest_indicator?.volatility ?? "-"}</dd>
         </div>
         <div>
-          <dt>Trend</dt>
+          <dt>Тренд</dt>
           <dd>{getTrendLabel(trend)}</dd>
         </div>
       </dl>
@@ -69,16 +69,16 @@ export function AssetCard({ asset }) {
               {getDirectionLabel(forecast.direction)}
             </span>
             <span className="badge badge-muted">
-              {getConfidenceLabel(forecast.confidence)} conf.
+              Уверенность: {getConfidenceLabel(forecast.confidence)}
             </span>
           </>
         ) : (
-          <span className="badge badge-muted">Forecast pending</span>
+          <span className="badge badge-muted">Прогноз пока не готов</span>
         )}
       </div>
 
       <Link className="text-link" to={`/assets/${asset.ticker}`}>
-        View details
+        Открыть карточку
       </Link>
     </article>
   );

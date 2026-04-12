@@ -7,6 +7,7 @@ const initialState = {
 
 export function LoginForm({ error, loading, onSubmit }) {
   const [form, setForm] = useState(initialState);
+  const isSubmitDisabled = loading || !form.email.trim() || !form.password.trim();
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -25,7 +26,7 @@ export function LoginForm({ error, loading, onSubmit }) {
     <form className="login-form card" onSubmit={handleSubmit}>
       <div className="login-form-head">
         <p className="page-eyebrow">MRAP</p>
-        <h1 className="hero-title">Sign in</h1>
+        <h1 className="hero-title">Вход в платформу</h1>
         <p className="hero-text">
           Доступ к аналитическому workspace. Используйте backend-учетную запись, чтобы открыть
           dashboard, активы, события и прогнозы.
@@ -39,6 +40,7 @@ export function LoginForm({ error, loading, onSubmit }) {
           name="email"
           onChange={handleChange}
           placeholder="user@example.com"
+          required
           type="email"
           value={form.email}
         />
@@ -51,6 +53,7 @@ export function LoginForm({ error, loading, onSubmit }) {
           name="password"
           onChange={handleChange}
           placeholder="Введите пароль"
+          required
           type="password"
           value={form.password}
         />
@@ -58,15 +61,16 @@ export function LoginForm({ error, loading, onSubmit }) {
 
       {error ? <div className="error-box">{error}</div> : null}
 
-      <button className="primary-button" disabled={loading} type="submit">
-        {loading ? "Выполняем вход..." : "Login"}
+      <button className="primary-button" disabled={isSubmitDisabled} type="submit">
+        {loading ? "Выполняем вход..." : "Войти"}
       </button>
 
       <div className="helper-card">
-        <strong>Protected analytics workspace</strong>
+        <strong>Демо-контур авторизации</strong>
         <p className="muted-text">
           В MVP клиент хранит сессию локально, а бизнес-данные продолжают запрашиваться из уже
-          существующих backend endpoint&apos;ов.
+          существующих backend endpoint&apos;ов. Если пользователя еще нет, его нужно создать через{" "}
+          <code>POST /api/v1/auth/register</code>.
         </p>
       </div>
     </form>

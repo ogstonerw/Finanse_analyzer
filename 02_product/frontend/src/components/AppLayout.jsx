@@ -44,7 +44,7 @@ export function AppLayout({ session, onLogout }) {
             </div>
             <div className="sidebar-user-copy">
               <strong>{session?.email || "demo@local"}</strong>
-              <span>Выход</span>
+              <span>Активная сессия</span>
             </div>
           </div>
         </div>
@@ -56,14 +56,11 @@ export function AppLayout({ session, onLogout }) {
             <span className="search-icon" aria-hidden="true">
               ⌕
             </span>
-            <input
-              placeholder="Поиск по активам, новостям, прогнозам"
-              type="search"
-            />
+            <input placeholder="Демо-поиск по активам, новостям и прогнозам" type="search" />
           </label>
 
           <div className="topbar-meta">
-            <span className="status-badge status-badge-positive">Данные обновлены</span>
+            <span className="status-badge status-badge-positive">MVP готов к демонстрации</span>
             <div className="session-chip">
               <span className="session-chip-label">Сессия</span>
               <strong>{session?.email}</strong>

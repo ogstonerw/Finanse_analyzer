@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { EmptyState } from "../components/EmptyState";
 import { EventsListBlock } from "../components/EventsListBlock";
 import { LoadingBlock } from "../components/LoadingBlock";
+import { NoticeCard } from "../components/NoticeCard";
 import { PageHeader } from "../components/PageHeader";
 import { getEventTypeLabel } from "../lib/formatters";
 import { useRemoteData } from "../lib/useRemoteData";
@@ -13,11 +14,25 @@ export function NewsEventsPage() {
 
   const { data, loading, error, reload } = useRemoteData(
     async () => {
-      const [news, events] = await Promise.all([api.getNews(), api.getEvents()]);
+      const [newsResult, eventsResult] = await Promise.allSettled([api.getNews(), api.getEvents()]);
+      const noticeParts = [];
+
+      if (newsResult.status === "rejected" && eventsResult.status === "rejected") {
+        throw new Error("Backend не вернул ни новости, ни события.");
+      }
+
+      if (newsResult.status === "rejected") {
+        noticeParts.push("Новостная лента временно недоступна.");
+      }
+
+      if (eventsResult.status === "rejected") {
+        noticeParts.push("Сервис структурированных событий временно недоступен.");
+      }
 
       return {
-        events: events.items || [],
-        news: news.items || []
+        events: eventsResult.status === "fulfilled" ? eventsResult.value.items || [] : [],
+        news: newsResult.status === "fulfilled" ? newsResult.value.items || [] : [],
+        notice: noticeParts.join(" ")
       };
     },
     []
@@ -28,7 +43,18 @@ export function NewsEventsPage() {
   }
 
   if (error) {
-    return <EmptyState title="Не удалось загрузить новости и события" description={error} />;
+    return (
+      <EmptyState
+        action={
+          <button className="secondary-button" onClick={reload} type="button">
+            Повторить запрос
+          </button>
+        }
+        description={error}
+        title="Не удалось загрузить новости и события"
+        variant="error"
+      />
+    );
   }
 
   const combinedFeed = [
@@ -61,11 +87,19 @@ export function NewsEventsPage() {
     return accumulator;
   }, {});
   const topAsset = Object.entries(assetMentions).sort((left, right) => right[1] - left[1])[0];
+  const activeKindLabel =
+    activeKind === "all"
+      ? "все записи"
+      : activeKind === "news"
+        ? "новости"
+        : activeKind === "events"
+          ? "события"
+          : activeKind;
 
   return (
     <div className="page-stack">
       <PageHeader
-        eyebrow="News & Events"
+        eyebrow="Лента"
         title="Новости и события"
         description="Единая аналитическая лента с локальным поиском по уже нормализованным данным backend."
         actions={
@@ -75,24 +109,26 @@ export function NewsEventsPage() {
         }
       />
 
+      {data.notice ? <NoticeCard description={data.notice} title="Частичная деградация данных" /> : null}
+
       <section className="kpi-grid">
         <article className="kpi-card">
-          <span className="kpi-label">News</span>
+          <span className="kpi-label">Новости</span>
           <strong className="kpi-value">{data.news.length}</strong>
           <span className="kpi-meta">новостных записей</span>
         </article>
         <article className="kpi-card">
-          <span className="kpi-label">Events</span>
+          <span className="kpi-label">События</span>
           <strong className="kpi-value">{data.events.length}</strong>
           <span className="kpi-meta">структурированных событий</span>
         </article>
         <article className="kpi-card">
-          <span className="kpi-label">Top asset</span>
+          <span className="kpi-label">Топ-актив</span>
           <strong className="kpi-value">{topAsset?.[0] || "-"}</strong>
           <span className="kpi-meta">{topAsset ? `${topAsset[1]} упоминаний` : "нет привязки к активам"}</span>
         </article>
         <article className="kpi-card">
-          <span className="kpi-label">Types</span>
+          <span className="kpi-label">Типы событий</span>
           <strong className="kpi-value">{eventTypes.length - 1}</strong>
           <span className="kpi-meta">ключевых типов событий</span>
         </article>
@@ -124,14 +160,14 @@ export function NewsEventsPage() {
             onClick={() => setActiveKind("news")}
             type="button"
           >
-            News
+            Новости
           </button>
           <button
             className={`filter-chip${activeKind === "events" ? " filter-chip-active" : ""}`}
             onClick={() => setActiveKind("events")}
             type="button"
           >
-            Events
+            События
           </button>
           {eventTypes
             .filter((item) => item !== "all")
@@ -150,12 +186,31 @@ export function NewsEventsPage() {
       </section>
 
       <div className="news-layout">
-        <EventsListBlock items={filteredFeed} kind="mixed" title="Event Feed" />
+        {filteredFeed.length > 0 ? (
+          <EventsListBlock items={filteredFeed} kind="mixed" title="Общая лента" />
+        ) : (
+          <EmptyState
+            action={
+              <button
+                className="secondary-button"
+                onClick={() => {
+                  setActiveKind("all");
+                  setQuery("");
+                }}
+                type="button"
+              >
+                Сбросить фильтры
+              </button>
+            }
+            description="Попробуйте снять фильтр или изменить поисковый запрос."
+            title="По текущим условиям лента пуста"
+          />
+        )}
 
         <aside className="detail-side">
           <section className="card">
             <div className="section-header">
-              <h2 className="section-title">Event Summary</h2>
+              <h2 className="section-title">Сводка ленты</h2>
             </div>
 
             <div className="info-list">
@@ -180,7 +235,7 @@ export function NewsEventsPage() {
 
           <section className="card">
             <div className="section-header">
-              <h2 className="section-title">Heat block</h2>
+              <h2 className="section-title">Активы в фокусе</h2>
             </div>
 
             <div className="stack-list">
@@ -191,7 +246,7 @@ export function NewsEventsPage() {
                   <div className="list-item list-item-compact" key={asset}>
                     <div className="list-item-head">
                       <strong>{asset}</strong>
-                      <span className="badge badge-muted">{count} events</span>
+                      <span className="badge badge-muted">{count} записей</span>
                     </div>
                   </div>
                 ))}
@@ -204,13 +259,13 @@ export function NewsEventsPage() {
 
           <section className="card">
             <div className="section-header">
-              <h2 className="section-title">Filter Summary</h2>
+              <h2 className="section-title">Параметры фильтра</h2>
             </div>
 
             <div className="info-list">
               <div className="info-row">
                 <span>Тип</span>
-                <strong>{activeKind}</strong>
+                <strong>{activeKindLabel}</strong>
               </div>
               <div className="info-row">
                 <span>Запрос</span>
@@ -218,7 +273,7 @@ export function NewsEventsPage() {
               </div>
               <div className="info-row">
                 <span>Источник</span>
-                <strong>open feeds / backend</strong>
+                <strong>backend API</strong>
               </div>
             </div>
           </section>

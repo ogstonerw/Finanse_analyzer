@@ -5,7 +5,7 @@ export function formatDateTime(value) {
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "—";
+    return "-";
   }
 
   return new Intl.DateTimeFormat("ru-RU", {
@@ -44,7 +44,7 @@ export function formatNumber(value, digits = 2) {
 export function formatPercent(value, options = {}) {
   const { digits = 2, multiplier = 1 } = options;
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
-    return "—";
+    return "-";
   }
 
   return `${formatNumber(Number(value) * multiplier, digits)}%`;
@@ -61,11 +61,11 @@ export function formatPrice(value, currency = "") {
 
   switch (normalizedCurrency) {
     case "RUB":
-      return `${formatted} ₽`;
+      return `${formatted} RUB`;
     case "USD":
       return `$${formatted}`;
     case "EUR":
-      return `€${formatted}`;
+      return `${formatted} EUR`;
     default:
       return normalizedCurrency ? `${formatted} ${normalizedCurrency}` : formatted;
   }
@@ -74,11 +74,11 @@ export function formatPrice(value, currency = "") {
 export function getDirectionLabel(direction) {
   switch (direction) {
     case "positive":
-      return "Bullish";
+      return "Рост";
     case "negative":
-      return "Bearish";
+      return "Снижение";
     case "neutral":
-      return "Neutral";
+      return "Нейтрально";
     default:
       return direction || "-";
   }
@@ -87,11 +87,11 @@ export function getDirectionLabel(direction) {
 export function getTrendLabel(direction) {
   switch (direction) {
     case "up":
-      return "Up";
+      return "Рост";
     case "down":
-      return "Down";
+      return "Снижение";
     case "flat":
-      return "Flat";
+      return "Боковик";
     default:
       return "-";
   }
@@ -122,14 +122,14 @@ export function getStrengthLabel(value) {
   const normalized = Number(value);
 
   if (normalized >= 0.67) {
-    return "Strong";
+    return "Сильный";
   }
 
   if (normalized >= 0.34) {
-    return "Medium";
+    return "Средний";
   }
 
-  return "Low";
+  return "Слабый";
 }
 
 export function getConfidenceLabel(value) {
@@ -140,14 +140,14 @@ export function getConfidenceLabel(value) {
   const normalized = Number(value);
 
   if (normalized >= 0.7) {
-    return "High";
+    return "Высокая";
   }
 
   if (normalized >= 0.4) {
-    return "Medium";
+    return "Средняя";
   }
 
-  return "Low";
+  return "Низкая";
 }
 
 export function getAssetTypeLabel(value) {
@@ -158,13 +158,13 @@ export function getAssetTypeLabel(value) {
     case "stocks":
     case "share":
     case "shares":
-      return "Stocks";
+      return "Акции";
     case "index":
     case "indices":
-      return "Index";
+      return "Индекс";
     case "commodity":
     case "commodities":
-      return "Commodities";
+      return "Сырье";
     default:
       return value || "-";
   }
@@ -172,7 +172,7 @@ export function getAssetTypeLabel(value) {
 
 export function getEventTypeLabel(value) {
   if (!value) {
-    return "Event";
+    return "Событие";
   }
 
   return String(value)

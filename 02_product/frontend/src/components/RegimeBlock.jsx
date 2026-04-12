@@ -11,7 +11,20 @@ function Metric({ label, value }) {
 
 export function RegimeBlock({ compact = false, regime }) {
   if (!regime) {
-    return null;
+    return (
+      <section className={`card regime-card regime-card-empty${compact ? " regime-card-compact" : ""}`}>
+        <div className="section-header">
+          <div>
+            <h2 className="section-title">Кризисометр и режим рынка</h2>
+            <p className="section-subtitle">Данные для расчета режима пока недоступны</p>
+          </div>
+        </div>
+
+        <div className="inline-empty">
+          Backend пока не вернул рассчитанный режим рынка. Остальные блоки MVP можно демонстрировать отдельно.
+        </div>
+      </section>
+    );
   }
 
   const subScores = regime.sub_scores || {};
@@ -40,15 +53,15 @@ export function RegimeBlock({ compact = false, regime }) {
         <span className="progress-bar" style={{ width: `${regimeWidth}%` }} />
       </div>
 
-      <p className="card-lead">{regime.summary}</p>
-      <p>{regime.explanation}</p>
+      <p className="card-lead">{regime.summary || "Режим рынка рассчитан без расширенного summary."}</p>
+      <p>{regime.explanation || "Подробное объяснение режима пока не сформировано."}</p>
 
       <div className="metrics-grid">
-        <Metric label="Market stress" value={subScores.market_stress} />
-        <Metric label="News stress" value={subScores.news_stress} />
-        <Metric label="Macro stress" value={subScores.macro_stress} />
-        <Metric label="Commodity stress" value={subScores.commodity_stress} />
-        <Metric label="Breadth stress" value={subScores.breadth_stress} />
+        <Metric label="Рыночный стресс" value={subScores.market_stress} />
+        <Metric label="Новостный стресс" value={subScores.news_stress} />
+        <Metric label="Макро-стресс" value={subScores.macro_stress} />
+        <Metric label="Сырьевой стресс" value={subScores.commodity_stress} />
+        <Metric label="Ширина рынка" value={subScores.breadth_stress} />
       </div>
     </section>
   );

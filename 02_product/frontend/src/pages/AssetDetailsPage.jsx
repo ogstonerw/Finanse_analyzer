@@ -5,6 +5,7 @@ import { EventsListBlock } from "../components/EventsListBlock";
 import { ForecastsBlock } from "../components/ForecastsBlock";
 import { IndicatorsBlock } from "../components/IndicatorsBlock";
 import { LoadingBlock } from "../components/LoadingBlock";
+import { NoticeCard } from "../components/NoticeCard";
 import { PageHeader } from "../components/PageHeader";
 import { PricesBlock } from "../components/PricesBlock";
 import { RegimeBlock } from "../components/RegimeBlock";
@@ -23,24 +24,42 @@ export function AssetDetailsPage() {
 
   const { data, error, loading, reload } = useRemoteData(
     async () => {
-      const [asset, prices, indicators, dashboardSummary] = await Promise.all([
-        api.getAsset(normalizedTicker),
+      const asset = await api.getAsset(normalizedTicker);
+      const [pricesResult, indicatorsResult, dashboardResult] = await Promise.allSettled([
         api.getAssetPrices(normalizedTicker),
         api.getAssetIndicators(normalizedTicker),
         api.getDashboardSummary()
       ]);
+      const noticeParts = [];
+
+      const prices = pricesResult.status === "fulfilled" ? pricesResult.value : null;
+      const indicators = indicatorsResult.status === "fulfilled" ? indicatorsResult.value : null;
+      const dashboardSummary = dashboardResult.status === "fulfilled" ? dashboardResult.value : null;
+
+      if (pricesResult.status === "rejected") {
+        noticeParts.push("Ценовой ряд временно недоступен.");
+      }
+
+      if (indicatorsResult.status === "rejected") {
+        noticeParts.push("Технические индикаторы временно недоступны.");
+      }
+
+      if (dashboardResult.status === "rejected") {
+        noticeParts.push("Контекст из dashboard summary временно недоступен.");
+      }
 
       return {
         asset,
-        forecasts: (dashboardSummary.latest_forecasts || []).filter(
+        forecasts: (dashboardSummary?.latest_forecasts || []).filter(
           (forecast) => forecast.asset_ticker === normalizedTicker
         ),
-        indicators: indicators.items || [],
-        prices: prices.items || [],
-        relatedEvents: (dashboardSummary.recent_events || []).filter(
+        indicators: indicators?.items || [],
+        notice: noticeParts.join(" "),
+        prices: prices?.items || [],
+        relatedEvents: (dashboardSummary?.recent_events || []).filter(
           (event) => event.asset_ticker === normalizedTicker
         ),
-        regime: dashboardSummary.regime
+        regime: dashboardSummary?.regime || null
       };
     },
     [normalizedTicker]
@@ -53,8 +72,19 @@ export function AssetDetailsPage() {
   if (error) {
     return (
       <EmptyState
+        action={
+          <div className="page-actions">
+            <button className="secondary-button" onClick={reload} type="button">
+              Повторить запрос
+            </button>
+            <Link className="secondary-button secondary-link" to="/assets">
+              Ко всем активам
+            </Link>
+          </div>
+        }
         description={`${error}. Попробуйте обновить страницу.`}
         title="Не удалось открыть карточку актива"
+        variant="error"
       />
     );
   }
@@ -73,7 +103,7 @@ export function AssetDetailsPage() {
   return (
     <div className="page-stack">
       <PageHeader
-        eyebrow="Asset details"
+        eyebrow="Карточка актива"
         actions={
           <div className="page-actions">
             <button className="secondary-button" onClick={reload} type="button">
@@ -88,13 +118,15 @@ export function AssetDetailsPage() {
         title="Детали актива"
       />
 
+      {data.notice ? <NoticeCard description={data.notice} title="Частичная деградация данных" /> : null}
+
       <section className="card detail-hero-card">
         <div>
           <p className="asset-ticker">{data.asset.ticker}</p>
           <h2 className="hero-title hero-title-compact">{data.asset.name}</h2>
           <p className="hero-text">
-            {getAssetTypeLabel(data.asset.asset_type)} · {data.asset.sector || "Sector n/a"} ·{" "}
-            {data.asset.currency || "Currency n/a"}
+            {getAssetTypeLabel(data.asset.asset_type)} · {data.asset.sector || "сектор не указан"} ·{" "}
+            {data.asset.currency || "валюта не указана"}
           </p>
         </div>
 
@@ -107,10 +139,10 @@ export function AssetDetailsPage() {
           </div>
           <div className="tag-row">
             <span className={`badge badge-${dayChangeVariant}`}>
-              {dayChange === null ? "-" : `${formatPercent(dayChange)} day`}
+              {dayChange === null ? "-" : `${formatPercent(dayChange)} за день`}
             </span>
             {latestIndicator ? (
-              <span className="badge badge-muted">{formatPercent(latestIndicator.weekly_return)} week</span>
+              <span className="badge badge-muted">{formatPercent(latestIndicator.weekly_return)} за неделю</span>
             ) : null}
           </div>
         </div>
@@ -122,7 +154,7 @@ export function AssetDetailsPage() {
           <IndicatorsBlock indicators={data.indicators} ticker={data.asset.ticker} />
 
           {latestForecast ? (
-            <ForecastsBlock forecasts={[latestForecast]} title="Latest Forecast" />
+            <ForecastsBlock forecasts={[latestForecast]} title="Актуальный прогноз" />
           ) : (
             <EmptyState
               description="Backend пока не вернул свежий прогноз по этому инструменту в dashboard summary."
@@ -130,7 +162,7 @@ export function AssetDetailsPage() {
             />
           )}
 
-          <EventsListBlock items={data.relatedEvents} kind="events" title="Related News & Events" />
+          <EventsListBlock items={data.relatedEvents} kind="events" title="Связанные новости и события" />
         </div>
 
         <aside className="detail-side">
@@ -138,7 +170,7 @@ export function AssetDetailsPage() {
 
           <section className="card">
             <div className="section-header">
-              <h2 className="section-title">Key Stats</h2>
+              <h2 className="section-title">Ключевые параметры</h2>
             </div>
 
             <div className="info-list">
@@ -148,7 +180,7 @@ export function AssetDetailsPage() {
               </div>
               <div className="info-row">
                 <span>Тип</span>
-                <strong>{data.asset.asset_type || "-"}</strong>
+                <strong>{getAssetTypeLabel(data.asset.asset_type)}</strong>
               </div>
               <div className="info-row">
                 <span>Источник</span>
@@ -163,7 +195,7 @@ export function AssetDetailsPage() {
 
           <section className="card">
             <div className="section-header">
-              <h2 className="section-title">Forecast History</h2>
+              <h2 className="section-title">История прогнозов</h2>
             </div>
 
             {data.forecasts.length > 0 ? (
@@ -185,7 +217,7 @@ export function AssetDetailsPage() {
 
           <section className="card">
             <div className="section-header">
-              <h2 className="section-title">What to monitor</h2>
+              <h2 className="section-title">На что смотреть</h2>
             </div>
 
             <div className="info-list">
@@ -194,7 +226,7 @@ export function AssetDetailsPage() {
                 <strong>{latestIndicator?.rsi ?? "-"}</strong>
               </div>
               <div className="info-row">
-                <span>Trend</span>
+                <span>Тренд</span>
                 <strong>{getTrendLabel(latestIndicator?.trend_direction)}</strong>
               </div>
               <div className="info-row">

@@ -67,10 +67,10 @@ export function ForecastsBlock({ forecasts, title = "Прогнозы" }) {
 
             <div className="tag-row">
               <span className="badge badge-muted">
-                Strength {formatPercent(forecast.strength, { multiplier: 100 })}
+                Сила: {formatPercent(forecast.strength, { multiplier: 100 })}
               </span>
               <span className="badge badge-muted">
-                Confidence {formatPercent(forecast.confidence, { multiplier: 100 })}
+                Уверенность: {formatPercent(forecast.confidence, { multiplier: 100 })}
               </span>
               {forecast.market_context ? (
                 <span className="badge badge-muted">

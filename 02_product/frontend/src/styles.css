@@ -78,6 +78,15 @@ a {
   text-decoration: none;
 }
 
+code {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 0.95em;
+  padding: 1px 6px;
+}
+
 button {
   border: none;
   cursor: pointer;
@@ -430,6 +439,12 @@ button {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
+}
+
+.stack-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 .dashboard-side-stack {
@@ -948,6 +963,40 @@ button {
     rgba(255, 255, 255, 0.03);
 }
 
+.notice-card {
+  align-items: flex-start;
+  background:
+    linear-gradient(180deg, rgba(245, 185, 66, 0.08), transparent 45%),
+    linear-gradient(180deg, rgba(22, 31, 51, 0.98), rgba(15, 22, 37, 0.98));
+  display: flex;
+  gap: var(--space-4);
+}
+
+.notice-card-icon {
+  align-items: center;
+  background: var(--warning-soft);
+  border: 1px solid rgba(245, 185, 66, 0.24);
+  border-radius: 14px;
+  color: var(--warning);
+  display: inline-flex;
+  flex: 0 0 40px;
+  font-size: 20px;
+  font-weight: 700;
+  height: 40px;
+  justify-content: center;
+  line-height: 1;
+}
+
+.notice-card-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.notice-card-copy p {
+  margin: 0;
+}
+
 .table-wrapper {
   overflow-x: auto;
 }
@@ -1115,6 +1164,12 @@ button {
   text-align: center;
 }
 
+.empty-state-error {
+  background:
+    linear-gradient(180deg, rgba(240, 77, 94, 0.08), transparent 45%),
+    linear-gradient(180deg, rgba(22, 31, 51, 0.98), rgba(15, 22, 37, 0.98));
+}
+
 .empty-state-icon {
   align-items: center;
   background: rgba(79, 124, 255, 0.12);
@@ -1127,6 +1182,12 @@ button {
   justify-content: center;
   position: relative;
   width: 52px;
+}
+
+.empty-state-icon-error {
+  background: rgba(240, 77, 94, 0.12);
+  border-color: rgba(240, 77, 94, 0.24);
+  color: var(--negative);
 }
 
 .empty-state-icon::before,

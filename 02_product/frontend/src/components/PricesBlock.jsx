@@ -53,7 +53,7 @@ export function PricesBlock({ prices, ticker }) {
               </div>
               <div className="tag-row">
                 <span className={`badge badge-${dayChangeVariant}`}>
-                  {dayChange === null ? "-" : `${formatNumber(dayChange)}% day`}
+                  {dayChange === null ? "-" : `${formatNumber(dayChange)}% за день`}
                 </span>
               </div>
             </div>
@@ -71,30 +71,30 @@ export function PricesBlock({ prices, ticker }) {
           </div>
 
           <div className="table-wrapper">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Дата</th>
-                <th>Open</th>
-                <th>High</th>
-                <th>Low</th>
-                <th>Close</th>
-                <th>Volume</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recent.map((item) => (
-                <tr key={item.candle_time}>
-                  <td>{formatDateTime(item.candle_time)}</td>
-                  <td>{formatNumber(item.open_price)}</td>
-                  <td>{formatNumber(item.high_price)}</td>
-                  <td>{formatNumber(item.low_price)}</td>
-                  <td>{formatNumber(item.close_price)}</td>
-                  <td>{formatNumber(item.volume)}</td>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Открытие</th>
+                  <th>Максимум</th>
+                  <th>Минимум</th>
+                  <th>Закрытие</th>
+                  <th>Объем</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {recent.map((item) => (
+                  <tr key={item.candle_time}>
+                    <td>{formatDateTime(item.candle_time)}</td>
+                    <td>{formatNumber(item.open_price)}</td>
+                    <td>{formatNumber(item.high_price)}</td>
+                    <td>{formatNumber(item.low_price)}</td>
+                    <td>{formatNumber(item.close_price)}</td>
+                    <td>{formatNumber(item.volume)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </>
       ) : (

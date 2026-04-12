@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "../api/client";
 import { EmptyState } from "../components/EmptyState";
 import { LoadingBlock } from "../components/LoadingBlock";
+import { NoticeCard } from "../components/NoticeCard";
 import { PageHeader } from "../components/PageHeader";
 import { RegimeBlock } from "../components/RegimeBlock";
 import {
@@ -21,14 +22,34 @@ export function ForecastsPage() {
 
   const { data, loading, error, reload } = useRemoteData(
     async () => {
-      const [dashboardSummary, latestForecast] = await Promise.all([
+      const [dashboardResult, latestResult] = await Promise.allSettled([
         api.getDashboardSummary(),
         api.getLatestForecast()
       ]);
 
+      if (dashboardResult.status === "rejected" && latestResult.status === "rejected") {
+        throw new Error("Backend не вернул прогнозы ни из dashboard summary, ни из latest forecast endpoint.");
+      }
+
+      const noticeParts = [];
+
+      if (dashboardResult.status === "rejected") {
+        noticeParts.push("Dashboard summary временно недоступен, поэтому показан только latest forecast.");
+      }
+
+      if (latestResult.status === "rejected") {
+        noticeParts.push("Отдельный latest forecast endpoint временно недоступен.");
+      }
+
+      const dashboardSummary =
+        dashboardResult.status === "fulfilled"
+          ? dashboardResult.value
+          : { latest_forecasts: [], regime: null };
+
       return {
         latestForecasts: dashboardSummary.latest_forecasts || [],
-        latestSingleForecast: latestForecast || null,
+        latestSingleForecast: latestResult.status === "fulfilled" ? latestResult.value || null : null,
+        notice: noticeParts.join(" "),
         regime: dashboardSummary.regime || null
       };
     },
@@ -40,7 +61,18 @@ export function ForecastsPage() {
   }
 
   if (error) {
-    return <EmptyState title="Не удалось загрузить прогнозы" description={error} />;
+    return (
+      <EmptyState
+        action={
+          <button className="secondary-button" onClick={reload} type="button">
+            Повторить запрос
+          </button>
+        }
+        description={error}
+        title="Не удалось загрузить прогнозы"
+        variant="error"
+      />
+    );
   }
 
   const allForecasts = data.latestSingleForecast
@@ -67,7 +99,7 @@ export function ForecastsPage() {
   return (
     <div className="page-stack">
       <PageHeader
-        eyebrow="Forecasts"
+        eyebrow="Сигналы"
         title="Прогнозы"
         description="Лента последних сигналов, их силы, уверенности и краткого объяснения без выдумывания новой бизнес-логики."
         actions={
@@ -77,30 +109,32 @@ export function ForecastsPage() {
         }
       />
 
+      {data.notice ? <NoticeCard description={data.notice} title="Частичная деградация данных" /> : null}
+
       <section className="kpi-grid">
         <article className="kpi-card">
-          <span className="kpi-label">Bullish forecasts</span>
+          <span className="kpi-label">Сигналы на рост</span>
           <strong className="kpi-value">
             {allForecasts.filter((forecast) => forecast.direction === "positive").length}
           </strong>
           <span className="kpi-meta">направление с ростом</span>
         </article>
         <article className="kpi-card">
-          <span className="kpi-label">Bearish forecasts</span>
+          <span className="kpi-label">Сигналы на снижение</span>
           <strong className="kpi-value">
             {allForecasts.filter((forecast) => forecast.direction === "negative").length}
           </strong>
           <span className="kpi-meta">сигналы со снижением</span>
         </article>
         <article className="kpi-card">
-          <span className="kpi-label">Average confidence</span>
+          <span className="kpi-label">Средняя уверенность</span>
           <strong className="kpi-value">
             {averageConfidence === null ? "-" : formatPercent(averageConfidence, { multiplier: 100 })}
           </strong>
           <span className="kpi-meta">по текущей фильтрации</span>
         </article>
         <article className="kpi-card">
-          <span className="kpi-label">Latest generation</span>
+          <span className="kpi-label">Последний расчет</span>
           <strong className="kpi-value">
             {selectedForecast ? formatDateTime(selectedForecast.generated_at) : "-"}
           </strong>
@@ -115,7 +149,7 @@ export function ForecastsPage() {
           </span>
           <input
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Filter by asset"
+            placeholder="Поиск по тикеру или названию актива"
             type="search"
             value={query}
           />
@@ -123,10 +157,10 @@ export function ForecastsPage() {
 
         <div className="chip-group">
           {[
-            { label: "All", value: "all" },
-            { label: "Bullish", value: "positive" },
-            { label: "Bearish", value: "negative" },
-            { label: "Neutral", value: "neutral" }
+            { label: "Все", value: "all" },
+            { label: "Рост", value: "positive" },
+            { label: "Снижение", value: "negative" },
+            { label: "Нейтрально", value: "neutral" }
           ].map((item) => (
             <button
               key={item.value}
@@ -144,6 +178,18 @@ export function ForecastsPage() {
 
       {filteredForecasts.length === 0 ? (
         <EmptyState
+          action={
+            <button
+              className="secondary-button"
+              onClick={() => {
+                setDirectionFilter("all");
+                setQuery("");
+              }}
+              type="button"
+            >
+              Сбросить фильтры
+            </button>
+          }
           description="Попробуйте сбросить фильтры или изменить поисковый запрос."
           title="По выбранным условиям прогнозы не найдены"
         />
@@ -151,13 +197,13 @@ export function ForecastsPage() {
         <>
           <section className="card forecast-table-card">
             <div className="forecast-table-header">
-              <span>Asset</span>
-              <span>Direction</span>
-              <span>Strength</span>
-              <span>Confidence</span>
-              <span>Explanation preview</span>
-              <span>Created</span>
-              <span>Action</span>
+              <span>Актив</span>
+              <span>Направление</span>
+              <span>Сила</span>
+              <span>Уверенность</span>
+              <span>Краткое объяснение</span>
+              <span>Создан</span>
+              <span>Действие</span>
             </div>
 
             <div className="forecast-table-body">
@@ -180,7 +226,7 @@ export function ForecastsPage() {
                   <span>{getConfidenceLabel(forecast.confidence)}</span>
                   <span className="forecast-row-text">{forecast.explanation}</span>
                   <span>{formatDateTime(forecast.generated_at)}</span>
-                  <span className="text-link">Открыть</span>
+                  <span className="text-link">Выбрать</span>
                 </button>
               ))}
             </div>
@@ -196,7 +242,7 @@ export function ForecastsPage() {
                   <p className="section-subtitle">{formatDateTime(selectedForecast.generated_at)}</p>
                 </div>
                 <span className={`badge badge-${getDirectionClassName(selectedForecast.direction)}`}>
-                  {getConfidenceLabel(selectedForecast.confidence)} confidence
+                  Уверенность: {getConfidenceLabel(selectedForecast.confidence)}
                 </span>
               </div>
 
@@ -204,10 +250,10 @@ export function ForecastsPage() {
 
               <div className="tag-row">
                 <span className="badge badge-muted">
-                  Strength {formatPercent(selectedForecast.strength, { multiplier: 100 })}
+                  Сила: {formatPercent(selectedForecast.strength, { multiplier: 100 })}
                 </span>
                 <span className="badge badge-muted">
-                  Confidence {formatPercent(selectedForecast.confidence, { multiplier: 100 })}
+                  Уверенность: {formatPercent(selectedForecast.confidence, { multiplier: 100 })}
                 </span>
                 <span className="badge badge-muted">{selectedForecast.horizon}</span>
                 {selectedForecast.market_context_label ? (
