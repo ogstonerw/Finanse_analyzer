@@ -2,68 +2,68 @@
 
 ## Этап
 
-Этап `session_12` фиксирует реализацию React frontend MVP поверх уже существующего backend API.
+Этап `session_12` фиксирует визуальное и структурное приведение React frontend MVP к локальному SVG design package с сохранением текущей frontend-архитектуры и существующих backend endpoint'ов.
 
 ## Цель
 
-Собрать React MVP frontend для платформы, подключить его к уже существующим backend endpoint'ам и подготовить удобный демонстрационный интерфейс для предзащиты.
+Сделать frontend визуально цельным и ближе к desktop references из дизайн-пакета, не меняя бизнес-логику продукта и не добавляя лишних рефакторингов вне `02_product/frontend/`.
 
 ## Что сделано
 
-- создан новый каталог `02_product/frontend/` с минимальным React + Vite приложением;
-- добавлена базовая маршрутизация для страниц:
-  - `login`
-  - `dashboard`
-  - `assets list`
-  - `asset details`
-  - `news/events list`
-  - `latest forecasts`
-- реализован простой локальный MVP-контур авторизации через `POST /api/v1/auth/login`;
-- подключены backend endpoint'ы:
-  - `GET /api/v1/dashboard/summary`
-  - `GET /api/v1/regime/current`
-  - `GET /api/v1/assets`
-  - `GET /api/v1/assets/{ticker}`
-  - `GET /api/v1/assets/{ticker}/prices`
-  - `GET /api/v1/assets/{ticker}/indicators`
-  - `GET /api/v1/news`
-  - `GET /api/v1/events`
-  - `GET /api/v1/forecasts/latest`
-- реализованы MVP-компоненты:
-  - `LoginForm`
-  - `DashboardSummaryBlock`
-  - `AssetCard`
-  - `PricesBlock`
-  - `IndicatorsBlock`
-  - `ForecastsBlock`
-  - `RegimeBlock`
-- добавлен общий `styles.css` с простым светлым интерфейсом, пригодным для демонстрации без сложного дизайна;
-- создан `package-lock.json` для воспроизводимой установки зависимостей;
-- frontend README обновлен под фактический способ запуска и подключения к backend.
-
-## Границы MVP этапа
-
-- во frontend есть только login-экран, без registration UI;
-- создание первого пользователя предполагается через backend endpoint `POST /api/v1/auth/register`;
-- нет сложного state management;
-- нет chart libraries;
-- нет production-ready UX и расширенной модели авторизации.
+- прочитаны обязательные правила проекта, текущий статус, frontend README и архитектурное описание платформы;
+- использованы локальные SVG-референсы:
+  - `00_Foundations/color_system.svg`
+  - `00_Foundations/typography.svg`
+  - `00_Foundations/spacing_radius_shadows.svg`
+  - `01_Components/components_overview.svg`
+  - `02_Desktop/D_Login.svg`
+  - `02_Desktop/D_Dashboard.svg`
+  - `02_Desktop/D_Assets.svg`
+  - `02_Desktop/D_AssetDetails.svg`
+  - `02_Desktop/D_NewsEvents.svg`
+  - `02_Desktop/D_Forecasts.svg`
+  - `03_States/states_overview.svg`
+- заменен базовый светлый стиль на единый dark desktop-first слой с дизайн-токенами для цветов, типографики, spacing, radius и card-based layout;
+- обновлен общий `AppLayout`:
+  - sidebar с брендингом и навигацией;
+  - topbar с поиском, статусом обновления и пользовательской сессией;
+- переработана `login page` под референсный hero + auth card сценарий;
+- переработан `dashboard`:
+  - кризисометр;
+  - summary block;
+  - KPI cards;
+  - quick actions;
+  - блоки активов, событий и прогнозов;
+- переработан `assets list`:
+  - toolbar с поиском и фильтрами;
+  - унифицированные карточки активов;
+  - пустые состояния без выдумывания новых данных;
+- переработан `asset details`:
+  - hero по инструменту;
+  - price block;
+  - indicators block;
+  - latest forecast;
+  - related events;
+  - правый сайдбар с key stats и history;
+- переработан `news/events page`:
+  - объединенная лента;
+  - фильтрация;
+  - summary и heat blocks;
+- переработан `forecasts page`:
+  - KPI summary;
+  - фильтры;
+  - table-like список сигналов;
+  - выделенная карточка выбранного прогноза;
+- сохранено подключение только к существующим backend endpoint'ам;
+- унифицированы loading, empty и error states для демонстрационного сценария;
+- обновлен `02_product/frontend/README.md` под новую экранную структуру и связь с SVG package;
+- выполнена проверка сборки frontend через `npm.cmd run build`.
 
 ## Измененные файлы
 
-- `02_product/frontend/.gitignore`
-- `02_product/frontend/index.html`
-- `02_product/frontend/package.json`
-- `02_product/frontend/package-lock.json`
-- `02_product/frontend/vite.config.js`
 - `02_product/frontend/README.md`
-- `02_product/frontend/src/main.jsx`
-- `02_product/frontend/src/App.jsx`
 - `02_product/frontend/src/styles.css`
-- `02_product/frontend/src/api/client.js`
-- `02_product/frontend/src/lib/authStorage.js`
 - `02_product/frontend/src/lib/formatters.js`
-- `02_product/frontend/src/lib/useRemoteData.js`
 - `02_product/frontend/src/components/AppLayout.jsx`
 - `02_product/frontend/src/components/AssetCard.jsx`
 - `02_product/frontend/src/components/DashboardSummaryBlock.jsx`
@@ -86,11 +86,10 @@
 
 ## Проверка
 
-- `npm.cmd install`
 - `npm.cmd run build`
 
-Сборка frontend MVP прошла успешно.
+Сборка frontend прошла успешно.
 
 ## Следующий логичный шаг
 
-Добавить в frontend более удобный демо-сценарий: фильтры по активам и событиям, явный flow первого пользователя и более наглядную связку прогнозов с текущим `market regime`.
+Добавить сквозные переходы и более явную связку между сигналом, событием и карточкой актива, чтобы в демо-сценарии пользователь быстрее видел, как новость и рыночный контекст переходят в конкретный прогноз.

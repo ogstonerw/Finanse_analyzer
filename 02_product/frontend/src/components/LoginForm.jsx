@@ -23,12 +23,12 @@ export function LoginForm({ error, loading, onSubmit }) {
 
   return (
     <form className="login-form card" onSubmit={handleSubmit}>
-      <div>
-        <p className="eyebrow">Market AI Platform</p>
-        <h1 className="hero-title">Вход в MVP интерфейс</h1>
+      <div className="login-form-head">
+        <p className="page-eyebrow">MRAP</p>
+        <h1 className="hero-title">Sign in</h1>
         <p className="hero-text">
-          Используйте учетную запись backend, чтобы открыть dashboard, кризисометр, активы и
-          прогнозы.
+          Доступ к аналитическому workspace. Используйте backend-учетную запись, чтобы открыть
+          dashboard, активы, события и прогнозы.
         </p>
       </div>
 
@@ -59,13 +59,16 @@ export function LoginForm({ error, loading, onSubmit }) {
       {error ? <div className="error-box">{error}</div> : null}
 
       <button className="primary-button" disabled={loading} type="submit">
-        {loading ? "Входим..." : "Войти"}
+        {loading ? "Выполняем вход..." : "Login"}
       </button>
 
-      <p className="muted-text">
-        MVP не реализует полноценную защищенную клиентскую авторизацию: после успешного login
-        токен просто сохраняется локально для демонстрации навигации.
-      </p>
+      <div className="helper-card">
+        <strong>Protected analytics workspace</strong>
+        <p className="muted-text">
+          В MVP клиент хранит сессию локально, а бизнес-данные продолжают запрашиваться из уже
+          существующих backend endpoint&apos;ов.
+        </p>
+      </div>
     </form>
   );
 }

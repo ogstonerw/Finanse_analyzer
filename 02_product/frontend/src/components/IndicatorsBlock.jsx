@@ -23,16 +23,16 @@ export function IndicatorsBlock({ indicators, ticker }) {
       </div>
 
       {latest ? (
-        <div className="metrics-grid">
+        <div className="metrics-grid metrics-grid-4">
           <Metric title="Последний расчет" value={formatDateTime(latest.indicator_time)} />
           <Metric title="Недельная доходность" value={formatPercent(latest.weekly_return)} />
           <Metric title="RSI" value={formatNumber(latest.rsi)} />
           <Metric title="Волатильность" value={formatNumber(latest.volatility)} />
           <Metric title="Тренд" value={getTrendLabel(latest.trend_direction)} />
-          <Metric title="Позиция в канале" value={formatNumber(latest.channel_position)} />
+          <Metric title="Позиция в канале" value={formatPercent(latest.channel_position, { multiplier: 100 })} />
         </div>
       ) : (
-        <p>Индикаторы пока не найдены.</p>
+        <div className="inline-empty">Индикаторы пока не найдены.</div>
       )}
 
       {recent.length > 0 ? (

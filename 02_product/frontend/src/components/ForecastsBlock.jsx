@@ -1,6 +1,30 @@
-import { formatDateTime, formatPercent, getDirectionLabel } from "../lib/formatters";
+import {
+  formatDateTime,
+  formatPercent,
+  getConfidenceLabel,
+  getDirectionClassName,
+  getDirectionLabel,
+  getStrengthLabel
+} from "../lib/formatters";
+import { EmptyState } from "./EmptyState";
 
 export function ForecastsBlock({ forecasts, title = "Прогнозы" }) {
+  if (!forecasts?.length) {
+    return (
+      <section className="card">
+        <div className="section-header">
+          <h2 className="section-title">{title}</h2>
+          <span className="badge badge-muted">0</span>
+        </div>
+
+        <EmptyState
+          description="Для этого блока backend пока не вернул актуальных прогнозов."
+          title="Прогнозов пока нет"
+        />
+      </section>
+    );
+  }
+
   return (
     <section className="card">
       <div className="section-header">
@@ -15,7 +39,9 @@ export function ForecastsBlock({ forecasts, title = "Прогнозы" }) {
               <h3>
                 {forecast.asset_ticker} · {forecast.asset_name}
               </h3>
-              <span className={`badge badge-${forecast.direction}`}>{getDirectionLabel(forecast.direction)}</span>
+              <span className={`badge badge-${getDirectionClassName(forecast.direction)}`}>
+                {getDirectionLabel(forecast.direction)}
+              </span>
             </div>
 
             <dl className="inline-metrics">
@@ -25,11 +51,11 @@ export function ForecastsBlock({ forecasts, title = "Прогнозы" }) {
               </div>
               <div>
                 <dt>Сила</dt>
-                <dd>{formatPercent(forecast.strength, { multiplier: 100 })}</dd>
+                <dd>{getStrengthLabel(forecast.strength)}</dd>
               </div>
               <div>
                 <dt>Уверенность</dt>
-                <dd>{formatPercent(forecast.confidence, { multiplier: 100 })}</dd>
+                <dd>{getConfidenceLabel(forecast.confidence)}</dd>
               </div>
               <div>
                 <dt>Сгенерирован</dt>
@@ -39,19 +65,26 @@ export function ForecastsBlock({ forecasts, title = "Прогнозы" }) {
 
             <p>{forecast.explanation}</p>
 
-            {forecast.market_context ? (
-              <p className="muted-text">
-                Контекст рынка: {forecast.market_context.label} ·{" "}
-                {formatPercent(forecast.market_context.score, { multiplier: 100 })}
-              </p>
-            ) : null}
-
-            {!forecast.market_context && forecast.market_context_label ? (
-              <p className="muted-text">
-                Контекст рынка: {forecast.market_context_label} ·{" "}
-                {formatPercent(forecast.market_context_score, { multiplier: 100 })}
-              </p>
-            ) : null}
+            <div className="tag-row">
+              <span className="badge badge-muted">
+                Strength {formatPercent(forecast.strength, { multiplier: 100 })}
+              </span>
+              <span className="badge badge-muted">
+                Confidence {formatPercent(forecast.confidence, { multiplier: 100 })}
+              </span>
+              {forecast.market_context ? (
+                <span className="badge badge-muted">
+                  {forecast.market_context.label} ·{" "}
+                  {formatPercent(forecast.market_context.score, { multiplier: 100 })}
+                </span>
+              ) : null}
+              {!forecast.market_context && forecast.market_context_label ? (
+                <span className="badge badge-muted">
+                  {forecast.market_context_label} ·{" "}
+                  {formatPercent(forecast.market_context_score, { multiplier: 100 })}
+                </span>
+              ) : null}
+            </div>
           </article>
         ))}
       </div>

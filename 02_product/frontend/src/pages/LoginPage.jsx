@@ -31,14 +31,29 @@ export function LoginPage({ onLogin }) {
   return (
     <div className="login-page">
       <div className="login-visual">
-        <p className="eyebrow">React MVP</p>
-        <h2 className="hero-title">Интерфейс для демонстрации платформы анализа рынка</h2>
-        <ul className="feature-list">
-          <li>dashboard со сводкой рынка и кризисометром;</li>
-          <li>каталог активов и карточка инструмента;</li>
-          <li>новости, события и последние прогнозы;</li>
-          <li>подключение к уже существующему backend API.</li>
-        </ul>
+        <div>
+          <p className="page-eyebrow">Market Reaction Analytics Platform</p>
+          <h2 className="hero-title">AI platform for market reaction analysis</h2>
+          <p className="hero-text">
+            Open-source news, macro and market data combined into short-term forecasts и
+            интерпретируемый режим рынка.
+          </p>
+        </div>
+
+        <div className="login-highlight-grid">
+          <article className="login-highlight">
+            <strong>News-driven signals</strong>
+            <p className="muted-text">Лента событий и новостей, привязанная к активам и сигналам.</p>
+          </article>
+          <article className="login-highlight">
+            <strong>Market regime indicator</strong>
+            <p className="muted-text">Кризисометр и краткое объяснение текущего состояния рынка.</p>
+          </article>
+          <article className="login-highlight">
+            <strong>Forecast history</strong>
+            <p className="muted-text">Последние сгенерированные сигналы с уверенностью и контекстом.</p>
+          </article>
+        </div>
       </div>
 
       <LoginForm error={error} loading={loading} onSubmit={handleSubmit} />
