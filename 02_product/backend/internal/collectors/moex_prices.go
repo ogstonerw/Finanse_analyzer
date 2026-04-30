@@ -13,11 +13,17 @@ import (
 
 const (
 	moexISSBaseURL      = "https://iss.moex.com/iss"
-	moexDailyInterval   = 24
 	moexPageSize        = 500
 	moexDateParamLayout = "2006-01-02"
 	moexDateTimeLayout  = "2006-01-02 15:04:05"
 )
+
+var moexIntervalByTimeframe = map[string]int{
+	"1m":  1,
+	"10m": 10,
+	"1h":  60,
+	"1d":  24,
+}
 
 type MOEXInstrument struct {
 	Ticker   string
@@ -86,9 +92,18 @@ func (c *MOEXCollector) SupportedTickers() []string {
 }
 
 func (c *MOEXCollector) FetchDailyCandles(ctx context.Context, ticker string, from, till time.Time) ([]MOEXCandle, error) {
+	return c.FetchCandles(ctx, ticker, "1d", from, till)
+}
+
+func (c *MOEXCollector) FetchCandles(ctx context.Context, ticker, timeframe string, from, till time.Time) ([]MOEXCandle, error) {
 	instrument, ok := c.byTicker[strings.ToUpper(strings.TrimSpace(ticker))]
 	if !ok {
 		return nil, fmt.Errorf("moex instrument mapping is not configured for ticker %s", ticker)
+	}
+
+	interval, ok := moexIntervalByTimeframe[strings.ToLower(strings.TrimSpace(timeframe))]
+	if !ok {
+		return nil, fmt.Errorf("moex timeframe is not supported: %s", timeframe)
 	}
 
 	if till.IsZero() {
@@ -98,7 +113,7 @@ func (c *MOEXCollector) FetchDailyCandles(ctx context.Context, ticker string, fr
 	start := 0
 	items := make([]MOEXCandle, 0)
 	for {
-		page, err := c.fetchDailyCandlesPage(ctx, instrument, from, till, start)
+		page, err := c.fetchCandlesPage(ctx, instrument, interval, from, till, start)
 		if err != nil {
 			return nil, err
 		}
@@ -114,8 +129,8 @@ func (c *MOEXCollector) FetchDailyCandles(ctx context.Context, ticker string, fr
 	return items, nil
 }
 
-func (c *MOEXCollector) fetchDailyCandlesPage(ctx context.Context, instrument MOEXInstrument, from, till time.Time, start int) ([]MOEXCandle, error) {
-	endpoint, err := c.buildCandlesURL(instrument, from, till, start)
+func (c *MOEXCollector) fetchCandlesPage(ctx context.Context, instrument MOEXInstrument, interval int, from, till time.Time, start int) ([]MOEXCandle, error) {
+	endpoint, err := c.buildCandlesURL(instrument, interval, from, till, start)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +158,7 @@ func (c *MOEXCollector) fetchDailyCandlesPage(ctx context.Context, instrument MO
 	return decodeMOEXCandles(payload)
 }
 
-func (c *MOEXCollector) buildCandlesURL(instrument MOEXInstrument, from, till time.Time, start int) (string, error) {
+func (c *MOEXCollector) buildCandlesURL(instrument MOEXInstrument, interval int, from, till time.Time, start int) (string, error) {
 	u, err := url.Parse(c.baseURL)
 	if err != nil {
 		return "", fmt.Errorf("parse moex base url: %w", err)
@@ -158,7 +173,7 @@ func (c *MOEXCollector) buildCandlesURL(instrument MOEXInstrument, from, till ti
 	)
 
 	query := u.Query()
-	query.Set("interval", strconv.Itoa(moexDailyInterval))
+	query.Set("interval", strconv.Itoa(interval))
 	query.Set("from", from.UTC().Format(moexDateParamLayout))
 	query.Set("till", till.UTC().Format(moexDateParamLayout))
 	query.Set("start", strconv.Itoa(start))
