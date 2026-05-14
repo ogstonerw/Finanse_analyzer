@@ -72,9 +72,11 @@ export function formatPrice(value, currency = "") {
 }
 
 export function getDirectionLabel(direction) {
-  switch (direction) {
+  switch (normalizeForecastDirection(direction)) {
+    case "up":
     case "positive":
       return "Рост";
+    case "down":
     case "negative":
       return "Снижение";
     case "neutral":
@@ -154,6 +156,7 @@ export function getAssetTypeLabel(value) {
   const normalized = String(value || "").toLowerCase();
 
   switch (normalized) {
+    case "equity":
     case "stock":
     case "stocks":
     case "share":
@@ -181,14 +184,27 @@ export function getEventTypeLabel(value) {
 }
 
 export function getDirectionClassName(direction) {
-  switch (direction) {
+  switch (normalizeForecastDirection(direction)) {
+    case "up":
     case "positive":
       return "positive";
+    case "down":
     case "negative":
       return "negative";
     case "neutral":
       return "neutral";
     default:
       return "muted";
+  }
+}
+
+export function normalizeForecastDirection(direction) {
+  switch (direction) {
+    case "positive":
+      return "up";
+    case "negative":
+      return "down";
+    default:
+      return direction || "";
   }
 }

@@ -1,9 +1,14 @@
 package ai
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
 	"math"
+	"net/http"
 	"sort"
 	"strings"
 	"time"
@@ -12,18 +17,27 @@ import (
 const (
 	ModeFallback = "fallback"
 	ModePrepare  = "prepare"
+	ModeOpenAI   = "openai"
+
+	defaultOpenAIEndpoint = "https://api.openai.com/v1/responses"
+	defaultOpenAIModel    = "gpt-5.2"
+	defaultHTTPTimeoutSec = 30
 )
 
 type Config struct {
-	Mode     string
-	Provider string
-	Model    string
-	Endpoint string
-	APIKey   string
+	Mode            string
+	Provider        string
+	Model           string
+	Endpoint        string
+	APIKey          string
+	ReasoningEffort string
+	TextVerbosity   string
+	TimeoutSeconds  int
 }
 
 type Client struct {
-	config Config
+	config     Config
+	httpClient *http.Client
 }
 
 type Input struct {
@@ -99,9 +113,68 @@ type scoredFactor struct {
 	contribution float64
 }
 
+type openAIResponseRequest struct {
+	Model        string           `json:"model"`
+	Instructions string           `json:"instructions"`
+	Input        string           `json:"input"`
+	Text         openAITextConfig `json:"text"`
+	Reasoning    *openAIReasoning `json:"reasoning,omitempty"`
+}
+
+type openAITextConfig struct {
+	Format    openAITextFormat `json:"format"`
+	Verbosity string           `json:"verbosity,omitempty"`
+}
+
+type openAITextFormat struct {
+	Type        string         `json:"type"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Strict      bool           `json:"strict"`
+	Schema      map[string]any `json:"schema"`
+}
+
+type openAIReasoning struct {
+	Effort string `json:"effort,omitempty"`
+}
+
+type openAIResponsePayload struct {
+	ID         string              `json:"id"`
+	OutputText string              `json:"output_text"`
+	Output     []openAIOutputItem  `json:"output"`
+	Error      *openAIErrorPayload `json:"error,omitempty"`
+}
+
+type openAIOutputItem struct {
+	Type    string              `json:"type"`
+	Content []openAIContentItem `json:"content"`
+}
+
+type openAIContentItem struct {
+	Type    string `json:"type"`
+	Text    string `json:"text"`
+	Refusal string `json:"refusal"`
+}
+
+type openAIErrorPayload struct {
+	Message string `json:"message"`
+	Type    string `json:"type"`
+	Code    any    `json:"code"`
+}
+
+type structuredForecast struct {
+	Direction   string   `json:"direction"`
+	Strength    float64  `json:"strength"`
+	Confidence  float64  `json:"confidence"`
+	Explanation string   `json:"explanation"`
+	KeyFactors  []string `json:"key_factors"`
+}
+
 func NewClient(cfg Config) *Client {
 	mode := strings.ToLower(strings.TrimSpace(cfg.Mode))
-	if mode != ModePrepare {
+	switch mode {
+	case ModeFallback, ModePrepare, ModeOpenAI:
+	default:
 		mode = ModeFallback
 	}
 
@@ -112,25 +185,45 @@ func NewClient(cfg Config) *Client {
 
 	model := strings.TrimSpace(cfg.Model)
 	if model == "" {
-		if mode == ModePrepare {
-			model = "future-openai-model"
-		} else {
+		if mode == ModeFallback {
 			model = "fallback-rule-engine"
+		} else {
+			model = defaultOpenAIModel
 		}
+	}
+
+	endpoint := strings.TrimSpace(cfg.Endpoint)
+	if endpoint == "" && mode != ModeFallback {
+		endpoint = defaultOpenAIEndpoint
+	}
+
+	timeoutSeconds := cfg.TimeoutSeconds
+	if timeoutSeconds <= 0 {
+		timeoutSeconds = defaultHTTPTimeoutSec
 	}
 
 	return &Client{
 		config: Config{
-			Mode:     mode,
-			Provider: provider,
-			Model:    model,
-			Endpoint: strings.TrimSpace(cfg.Endpoint),
-			APIKey:   strings.TrimSpace(cfg.APIKey),
+			Mode:            mode,
+			Provider:        provider,
+			Model:           model,
+			Endpoint:        endpoint,
+			APIKey:          strings.TrimSpace(cfg.APIKey),
+			ReasoningEffort: strings.ToLower(strings.TrimSpace(cfg.ReasoningEffort)),
+			TextVerbosity:   strings.ToLower(strings.TrimSpace(cfg.TextVerbosity)),
+			TimeoutSeconds:  timeoutSeconds,
+		},
+		httpClient: &http.Client{
+			Timeout: time.Duration(timeoutSeconds) * time.Second,
 		},
 	}
 }
 
-func (c *Client) Generate(_ context.Context, input Input) (Output, error) {
+func (c *Client) Generate(ctx context.Context, input Input) (Output, error) {
+	if c.config.Mode == ModeOpenAI {
+		return c.generateOpenAI(ctx, input)
+	}
+
 	output := generateFallback(input)
 	output.Mode = c.config.Mode
 	output.Model = c.config.Model
@@ -144,17 +237,7 @@ func (c *Client) Generate(_ context.Context, input Input) (Output, error) {
 }
 
 func (c *Client) BuildPreparedRequest(input Input) PreparedRequest {
-	payload := map[string]any{
-		"instructions": "Analyze the structured market context and return direction, strength, confidence, explanation, and key factors for a one-week market reaction forecast.",
-		"expected_output": map[string]any{
-			"direction":   "up | neutral | down",
-			"strength":    "normalized float in range 0..1",
-			"confidence":  "normalized float in range 0..1",
-			"explanation": "short human-readable explanation",
-			"key_factors": []string{"factor"},
-		},
-		"input": input,
-	}
+	payload := c.buildOpenAIRequestPayload(input)
 
 	return PreparedRequest{
 		Provider: c.config.Provider,
@@ -162,6 +245,256 @@ func (c *Client) BuildPreparedRequest(input Input) PreparedRequest {
 		Model:    c.config.Model,
 		Payload:  payload,
 	}
+}
+
+func (c *Client) generateOpenAI(ctx context.Context, input Input) (Output, error) {
+	if strings.ToLower(c.config.Provider) != "openai" {
+		return Output{}, fmt.Errorf("unsupported ai provider for openai mode: %s", c.config.Provider)
+	}
+	if c.config.APIKey == "" {
+		return Output{}, errors.New("AI_API_KEY is required when AI_MODE=openai")
+	}
+	if c.config.Endpoint == "" {
+		return Output{}, errors.New("AI_API_ENDPOINT is required when AI_MODE=openai")
+	}
+
+	prepared := c.BuildPreparedRequest(input)
+	body, err := json.Marshal(prepared.Payload)
+	if err != nil {
+		return Output{}, fmt.Errorf("marshal openai request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.config.Endpoint, bytes.NewReader(body))
+	if err != nil {
+		return Output{}, fmt.Errorf("create openai request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.config.APIKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return Output{}, fmt.Errorf("send openai request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return Output{}, fmt.Errorf("read openai response: %w", err)
+	}
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return Output{}, fmt.Errorf("openai response status %s: %s", resp.Status, openAIErrorMessage(respBody))
+	}
+
+	var payload openAIResponsePayload
+	if err := json.Unmarshal(respBody, &payload); err != nil {
+		return Output{}, fmt.Errorf("decode openai response: %w", err)
+	}
+	if payload.Error != nil && strings.TrimSpace(payload.Error.Message) != "" {
+		return Output{}, fmt.Errorf("openai response error: %s", payload.Error.Message)
+	}
+
+	outputText, err := extractOpenAIOutputText(payload)
+	if err != nil {
+		return Output{}, err
+	}
+
+	var parsed structuredForecast
+	if err := json.Unmarshal([]byte(outputText), &parsed); err != nil {
+		return Output{}, fmt.Errorf("decode structured forecast output: %w", err)
+	}
+
+	output, err := normalizeStructuredForecast(parsed)
+	if err != nil {
+		return Output{}, err
+	}
+	output.Mode = ModeOpenAI
+	output.Model = c.config.Model
+	output.PreparedRequest = &prepared
+
+	return output, nil
+}
+
+func (c *Client) buildOpenAIRequestPayload(input Input) map[string]any {
+	inputJSON, err := json.Marshal(input)
+	if err != nil {
+		inputJSON = []byte("{}")
+	}
+
+	request := openAIResponseRequest{
+		Model:        c.config.Model,
+		Instructions: buildOpenAIInstructions(),
+		Input:        "Structured market forecast context as JSON:\n" + string(inputJSON),
+		Text: openAITextConfig{
+			Format: openAITextFormat{
+				Type:        "json_schema",
+				Name:        "market_forecast_signal",
+				Description: "One-week market reaction forecast generated from structured market, news, event and technical context.",
+				Strict:      true,
+				Schema:      forecastOutputSchema(),
+			},
+			Verbosity: c.config.TextVerbosity,
+		},
+	}
+
+	if c.config.ReasoningEffort != "" {
+		request.Reasoning = &openAIReasoning{Effort: c.config.ReasoningEffort}
+	}
+
+	payloadBytes, err := json.Marshal(request)
+	if err != nil {
+		return map[string]any{}
+	}
+
+	payload := make(map[string]any)
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		return map[string]any{}
+	}
+
+	return payload
+}
+
+func buildOpenAIInstructions() string {
+	return strings.Join([]string{
+		"You are the AI forecasting module of a Russian market analytics MVP.",
+		"Use only the structured input provided by the backend. Do not invent market data, sources, prices, events, or metrics.",
+		"Generate a one-week reaction forecast for the requested asset.",
+		"Interpret news and event text together with technical indicators and market regime; do not base the signal only on raw news sentiment.",
+		"Return direction as exactly one of: up, neutral, down.",
+		"Return strength and confidence as normalized numbers in the 0..1 range.",
+		"Write explanation and key_factors in Russian, briefly and without investment advice.",
+		"If input data is incomplete or contradictory, lower confidence and explain the limitation.",
+	}, " ")
+}
+
+func forecastOutputSchema() map[string]any {
+	return map[string]any{
+		"type":                 "object",
+		"additionalProperties": false,
+		"properties": map[string]any{
+			"direction": map[string]any{
+				"type":        "string",
+				"description": "Expected one-week market reaction direction.",
+				"enum":        []string{"up", "neutral", "down"},
+			},
+			"strength": map[string]any{
+				"type":        "number",
+				"description": "Normalized signal strength from 0 to 1.",
+			},
+			"confidence": map[string]any{
+				"type":        "number",
+				"description": "Normalized confidence score from 0 to 1.",
+			},
+			"explanation": map[string]any{
+				"type":        "string",
+				"description": "Short Russian explanation of the forecast and its limits.",
+			},
+			"key_factors": map[string]any{
+				"type":        "array",
+				"description": "Main Russian-language factors that influenced the signal.",
+				"items": map[string]any{
+					"type": "string",
+				},
+			},
+		},
+		"required": []string{
+			"direction",
+			"strength",
+			"confidence",
+			"explanation",
+			"key_factors",
+		},
+	}
+}
+
+func openAIErrorMessage(body []byte) string {
+	var payload openAIResponsePayload
+	if err := json.Unmarshal(body, &payload); err == nil && payload.Error != nil && payload.Error.Message != "" {
+		return payload.Error.Message
+	}
+
+	message := strings.TrimSpace(string(body))
+	if len(message) > 500 {
+		message = message[:500]
+	}
+	if message == "" {
+		message = "empty response body"
+	}
+
+	return message
+}
+
+func extractOpenAIOutputText(payload openAIResponsePayload) (string, error) {
+	if text := strings.TrimSpace(payload.OutputText); text != "" {
+		return text, nil
+	}
+
+	var refusal string
+	for _, item := range payload.Output {
+		for _, content := range item.Content {
+			if text := strings.TrimSpace(content.Text); text != "" {
+				return text, nil
+			}
+			if value := strings.TrimSpace(content.Refusal); value != "" {
+				refusal = value
+			}
+		}
+	}
+
+	if refusal != "" {
+		return "", fmt.Errorf("openai refused forecast request: %s", refusal)
+	}
+
+	return "", errors.New("openai response did not contain output text")
+}
+
+func normalizeStructuredForecast(parsed structuredForecast) (Output, error) {
+	direction := strings.ToLower(strings.TrimSpace(parsed.Direction))
+	switch direction {
+	case "up", "neutral", "down":
+	default:
+		return Output{}, fmt.Errorf("invalid forecast direction from openai: %s", parsed.Direction)
+	}
+
+	explanation := strings.TrimSpace(parsed.Explanation)
+	if explanation == "" {
+		return Output{}, errors.New("openai forecast explanation is empty")
+	}
+
+	keyFactors := normalizeKeyFactors(parsed.KeyFactors, 6)
+
+	return Output{
+		Direction:   direction,
+		Strength:    round2(clamp(parsed.Strength, 0, 1)),
+		Confidence:  round2(clamp(parsed.Confidence, 0, 1)),
+		Explanation: explanation,
+		KeyFactors:  keyFactors,
+	}, nil
+}
+
+func normalizeKeyFactors(values []string, limit int) []string {
+	if limit <= 0 {
+		limit = len(values)
+	}
+
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		normalized := strings.TrimSpace(value)
+		if normalized == "" {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		result = append(result, normalized)
+		if len(result) == limit {
+			break
+		}
+	}
+
+	return result
 }
 
 func generateFallback(input Input) Output {

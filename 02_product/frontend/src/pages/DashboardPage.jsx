@@ -9,6 +9,7 @@ import { LoadingBlock } from "../components/LoadingBlock";
 import { NoticeCard } from "../components/NoticeCard";
 import { PageHeader } from "../components/PageHeader";
 import { RegimeBlock } from "../components/RegimeBlock";
+import { normalizeForecastDirection } from "../lib/formatters";
 import { useRemoteData } from "../lib/useRemoteData";
 
 export function DashboardPage() {
@@ -65,10 +66,11 @@ export function DashboardPage() {
 
   const directionCounts = forecasts.reduce(
     (accumulator, forecast) => {
-      accumulator[forecast.direction] = (accumulator[forecast.direction] || 0) + 1;
+      const direction = normalizeForecastDirection(forecast.direction);
+      accumulator[direction] = (accumulator[direction] || 0) + 1;
       return accumulator;
     },
-    { negative: 0, neutral: 0, positive: 0 }
+    { down: 0, neutral: 0, up: 0 }
   );
 
   const strongestForecast = [...forecasts].sort(
@@ -182,12 +184,12 @@ export function DashboardPage() {
       <section className="kpi-grid">
         <article className="kpi-card">
           <span className="kpi-label">Позитивные сигналы</span>
-          <strong className="kpi-value">{directionCounts.positive}</strong>
+          <strong className="kpi-value">{directionCounts.up}</strong>
           <span className="kpi-meta">активов с ростом</span>
         </article>
         <article className="kpi-card">
           <span className="kpi-label">Негативные сигналы</span>
-          <strong className="kpi-value">{directionCounts.negative}</strong>
+          <strong className="kpi-value">{directionCounts.down}</strong>
           <span className="kpi-meta">активов со снижением</span>
         </article>
         <article className="kpi-card">

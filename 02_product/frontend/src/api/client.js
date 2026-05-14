@@ -76,5 +76,8 @@ export const api = {
   },
   getLatestForecast() {
     return apiRequest("/api/v1/forecasts/latest");
+  },
+  generateForecast(payload) {
+    return apiRequest("/api/v1/forecasts/generate", { body: payload, method: "POST" });
   }
 };

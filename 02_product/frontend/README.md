@@ -9,7 +9,7 @@ React frontend MVP для `Market Reaction Analytics Platform`. Клиентск
 - `AssetsPage` - список активов первой версии с поиском и фильтрами.
 - `AssetDetailsPage` - карточка инструмента с ценами, индикаторами, прогнозом и связанными событиями.
 - `NewsEventsPage` - объединенная лента новостей и событий.
-- `ForecastsPage` - список актуальных прогнозов и детальная карточка выбранного сигнала.
+- `ForecastsPage` - список актуальных прогнозов, генерация нового сигнала и детальная карточка выбранного прогноза.
 
 ## Что стабилизировано для демо
 
@@ -18,6 +18,7 @@ React frontend MVP для `Market Reaction Analytics Platform`. Клиентск
 - для сетевых и backend-ошибок предусмотрены `error states` с повторным запросом;
 - для частичной недоступности вторичных endpoint'ов предусмотрены warning-блоки без падения всего экрана;
 - заголовки, подписи и статусные labels приведены к более понятному демо-формату.
+- направления прогнозов приведены к backend-контракту `up`, `down`, `neutral`.
 
 ## Как frontend работает с backend endpoint'ами
 
@@ -26,7 +27,7 @@ React frontend MVP для `Market Reaction Analytics Platform`. Клиентск
 - `assets` -> `GET /api/v1/assets`, enrichment из `GET /api/v1/dashboard/summary`
 - `asset details` -> `GET /api/v1/assets/{ticker}`, `GET /api/v1/assets/{ticker}/prices`, `GET /api/v1/assets/{ticker}/indicators`, enrichment из `GET /api/v1/dashboard/summary`
 - `news/events` -> `GET /api/v1/news`, `GET /api/v1/events`
-- `forecasts` -> `GET /api/v1/forecasts/latest`, `GET /api/v1/dashboard/summary`
+- `forecasts` -> `GET /api/v1/forecasts/latest`, `GET /api/v1/dashboard/summary`, `POST /api/v1/forecasts/generate`
 
 Если secondary endpoint временно не отвечает, frontend старается сохранить основной экран работоспособным и явно показывает, какой именно блок деградировал.
 
@@ -77,6 +78,7 @@ VITE_API_BASE_URL=http://localhost:8080
    - `asset details`
    - `news/events`
    - `forecasts`
+   - генерацию нового прогноза по выбранному активу
 
 ## Ограничения MVP
 

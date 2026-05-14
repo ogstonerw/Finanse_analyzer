@@ -11,13 +11,19 @@ import {
   getConfidenceLabel,
   getDirectionClassName,
   getDirectionLabel,
-  getStrengthLabel
+  getStrengthLabel,
+  normalizeForecastDirection
 } from "../lib/formatters";
 import { useRemoteData } from "../lib/useRemoteData";
 
 export function ForecastsPage() {
   const [query, setQuery] = useState("");
   const [directionFilter, setDirectionFilter] = useState("all");
+  const [generateError, setGenerateError] = useState("");
+  const [generateEventId, setGenerateEventId] = useState("");
+  const [generateNotice, setGenerateNotice] = useState("");
+  const [generateTicker, setGenerateTicker] = useState("");
+  const [generating, setGenerating] = useState(false);
   const [selectedForecastId, setSelectedForecastId] = useState(null);
 
   const { data, loading, error, reload } = useRemoteData(
@@ -47,9 +53,11 @@ export function ForecastsPage() {
           : { latest_forecasts: [], regime: null };
 
       return {
+        assets: dashboardSummary.assets || [],
         latestForecasts: dashboardSummary.latest_forecasts || [],
         latestSingleForecast: latestResult.status === "fulfilled" ? latestResult.value || null : null,
         notice: noticeParts.join(" "),
+        recentEvents: dashboardSummary.recent_events || [],
         regime: dashboardSummary.regime || null
       };
     },
@@ -83,7 +91,8 @@ export function ForecastsPage() {
     : data.latestForecasts || [];
 
   const filteredForecasts = allForecasts.filter((forecast) => {
-    const matchesDirection = directionFilter === "all" || forecast.direction === directionFilter;
+    const direction = normalizeForecastDirection(forecast.direction);
+    const matchesDirection = directionFilter === "all" || direction === directionFilter;
     const haystack = `${forecast.asset_ticker} ${forecast.asset_name} ${forecast.explanation}`.toLowerCase();
     const matchesQuery = !query.trim() || haystack.includes(query.trim().toLowerCase());
     return matchesDirection && matchesQuery;
@@ -95,6 +104,33 @@ export function ForecastsPage() {
     filteredForecasts.length > 0
       ? filteredForecasts.reduce((sum, forecast) => sum + Number(forecast.confidence || 0), 0) / filteredForecasts.length
       : null;
+  const selectedGenerateTicker = generateTicker || data.assets[0]?.ticker || "";
+
+  async function handleGenerateForecast(event) {
+    event.preventDefault();
+    if (!selectedGenerateTicker || generating) {
+      return;
+    }
+
+    setGenerating(true);
+    setGenerateError("");
+    setGenerateNotice("");
+
+    try {
+      const forecast = await api.generateForecast({
+        ticker: selectedGenerateTicker,
+        event_id: generateEventId || undefined,
+        horizon: "1w"
+      });
+      setSelectedForecastId(forecast.id);
+      setGenerateNotice(`Прогноз для ${forecast.asset_ticker} сформирован и сохранен в истории.`);
+      await reload();
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : "Не удалось сформировать прогноз");
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   return (
     <div className="page-stack">
@@ -110,19 +146,56 @@ export function ForecastsPage() {
       />
 
       {data.notice ? <NoticeCard description={data.notice} title="Частичная деградация данных" /> : null}
+      {generateNotice ? <NoticeCard description={generateNotice} title="Прогноз сформирован" /> : null}
+      {generateError ? <NoticeCard description={generateError} title="Ошибка генерации прогноза" variant="warning" /> : null}
+
+      <section className="toolbar-card card">
+        <form className="forecast-generate-form" onSubmit={handleGenerateForecast}>
+          <label className="form-field">
+            <span>Актив</span>
+            <select
+              onChange={(event) => setGenerateTicker(event.target.value)}
+              value={selectedGenerateTicker}
+            >
+              {(data.assets || []).map((asset) => (
+                <option key={asset.id} value={asset.ticker}>
+                  {asset.ticker} · {asset.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="form-field form-field-wide">
+            <span>Событие</span>
+            <select onChange={(event) => setGenerateEventId(event.target.value)} value={generateEventId}>
+              <option value="">Автоматически: последнее релевантное событие</option>
+              {(data.recentEvents || []).map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.asset_ticker ? `${item.asset_ticker} · ` : ""}
+                  {item.event_type} · {item.news_title}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button className="primary-button" disabled={!selectedGenerateTicker || generating} type="submit">
+            {generating ? "Формируется..." : "Сформировать прогноз"}
+          </button>
+        </form>
+      </section>
 
       <section className="kpi-grid">
         <article className="kpi-card">
           <span className="kpi-label">Сигналы на рост</span>
           <strong className="kpi-value">
-            {allForecasts.filter((forecast) => forecast.direction === "positive").length}
+            {allForecasts.filter((forecast) => normalizeForecastDirection(forecast.direction) === "up").length}
           </strong>
           <span className="kpi-meta">направление с ростом</span>
         </article>
         <article className="kpi-card">
           <span className="kpi-label">Сигналы на снижение</span>
           <strong className="kpi-value">
-            {allForecasts.filter((forecast) => forecast.direction === "negative").length}
+            {allForecasts.filter((forecast) => normalizeForecastDirection(forecast.direction) === "down").length}
           </strong>
           <span className="kpi-meta">сигналы со снижением</span>
         </article>
@@ -158,8 +231,8 @@ export function ForecastsPage() {
         <div className="chip-group">
           {[
             { label: "Все", value: "all" },
-            { label: "Рост", value: "positive" },
-            { label: "Снижение", value: "negative" },
+            { label: "Рост", value: "up" },
+            { label: "Снижение", value: "down" },
             { label: "Нейтрально", value: "neutral" }
           ].map((item) => (
             <button

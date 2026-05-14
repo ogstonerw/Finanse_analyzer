@@ -1153,6 +1153,18 @@ button {
   justify-content: space-between;
 }
 
+.forecast-generate-form {
+  align-items: end;
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: minmax(180px, 0.8fr) minmax(280px, 1.4fr) auto;
+  width: 100%;
+}
+
+.form-field-wide {
+  min-width: 0;
+}
+
 .empty-state,
 .loading-block {
   align-items: center;
@@ -1331,16 +1343,19 @@ button {
   font-weight: 500;
 }
 
-.form-field input {
+.form-field input,
+.form-field select {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-sm);
   color: var(--text);
   min-height: 52px;
   padding: 0 var(--space-4);
+  width: 100%;
 }
 
 .form-field input:focus,
+.form-field select:focus,
 .search-field:focus-within,
 .topbar-search:focus-within {
   border-color: rgba(79, 124, 255, 0.32);
@@ -1420,6 +1435,10 @@ button {
 
   .topbar-search {
     max-width: none;
+  }
+
+  .forecast-generate-form {
+    grid-template-columns: 1fr;
   }
 
   .kpi-grid {

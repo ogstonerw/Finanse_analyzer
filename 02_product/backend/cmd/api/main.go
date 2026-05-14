@@ -37,6 +37,13 @@ func main() {
 		log.Fatalf("init storage: %v", err)
 	}
 
+	migrationCtx, migrationCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	if err := store.ApplyMigrations(migrationCtx, cfg.DatabaseMigrationsDir); err != nil {
+		migrationCancel()
+		log.Fatalf("apply migrations: %v", err)
+	}
+	migrationCancel()
+
 	pricesService := prices.NewService(store, collectors.NewMOEXCollector(nil))
 
 	priceSyncCtx, priceSyncCancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -70,11 +77,14 @@ func main() {
 	eventsSyncCancel()
 
 	aiClient := ai.NewClient(ai.Config{
-		Mode:     cfg.AIMode,
-		Provider: cfg.AIProvider,
-		Model:    cfg.AIModel,
-		Endpoint: cfg.AIAPIEndpoint,
-		APIKey:   cfg.AIAPIKey,
+		Mode:            cfg.AIMode,
+		Provider:        cfg.AIProvider,
+		Model:           cfg.AIModel,
+		Endpoint:        cfg.AIAPIEndpoint,
+		APIKey:          cfg.AIAPIKey,
+		ReasoningEffort: cfg.AIReasoningEffort,
+		TextVerbosity:   cfg.AITextVerbosity,
+		TimeoutSeconds:  cfg.AITimeoutSeconds,
 	})
 
 	forecastsService := forecasts.NewService(store, aiClient)

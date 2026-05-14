@@ -16,12 +16,16 @@ type Config struct {
 	AIModel                string
 	AIAPIEndpoint          string
 	AIAPIKey               string
+	AIReasoningEffort      string
+	AITextVerbosity        string
+	AITimeoutSeconds       int
 	DatabaseHost           string
 	DatabasePort           string
 	DatabaseUser           string
 	DatabasePassword       string
 	DatabaseName           string
 	DatabaseSSLMode        string
+	DatabaseMigrationsDir  string
 	DatabaseMaxOpenConns   int
 	DatabaseMaxIdleConns   int
 	DatabaseConnMaxLifeMin int
@@ -38,12 +42,16 @@ func LoadConfig() Config {
 		AIModel:                getEnv("AI_MODEL", ""),
 		AIAPIEndpoint:          getEnv("AI_API_ENDPOINT", ""),
 		AIAPIKey:               getEnv("AI_API_KEY", ""),
+		AIReasoningEffort:      getEnv("AI_REASONING_EFFORT", ""),
+		AITextVerbosity:        getEnv("AI_TEXT_VERBOSITY", ""),
+		AITimeoutSeconds:       getEnvInt("AI_TIMEOUT_SECONDS", 30),
 		DatabaseHost:           getEnv("DB_HOST", "localhost"),
 		DatabasePort:           getEnv("DB_PORT", "5432"),
 		DatabaseUser:           getEnv("DB_USER", "postgres"),
 		DatabasePassword:       getEnv("DB_PASSWORD", "postgres"),
 		DatabaseName:           getEnv("DB_NAME", "market_ai"),
 		DatabaseSSLMode:        getEnv("DB_SSLMODE", "disable"),
+		DatabaseMigrationsDir:  getEnv("DB_MIGRATIONS_DIR", "migrations"),
 		DatabaseMaxOpenConns:   getEnvInt("DB_MAX_OPEN_CONNS", 10),
 		DatabaseMaxIdleConns:   getEnvInt("DB_MAX_IDLE_CONNS", 5),
 		DatabaseConnMaxLifeMin: getEnvInt("DB_CONN_MAX_LIFETIME_MINUTES", 30),

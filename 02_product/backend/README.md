@@ -19,6 +19,10 @@ Backend MVP платформы анализа и прогнозирования 
   - `market_regime`
 - Storage/repository слой для активов, источников, свечей, индикаторов, новостей, событий, прогнозов и режима рынка.
 - Контуры `auth`, `assets`, `prices`, `indicators`, `news`, `events`, `forecasts`, `regime`, `storage`.
+- AI-клиент для генерации недельного сигнала в режимах:
+  - `fallback` - прозрачная rule-based модель без внешнего API;
+  - `prepare` - подготовка payload для проверки контекста;
+  - `openai` - обращение к OpenAI Responses API со структурированным JSON-ответом.
 
 ## Основные маршруты
 
@@ -58,6 +62,31 @@ Backend MVP платформы анализа и прогнозирования 
 - последние события
 - краткий общий `summary`
 
+## AI-режимы прогнозирования
+
+`POST /api/v1/forecasts/generate` собирает структурированный контекст прогноза: актив, связанное событие и новость, последние технические индикаторы и текущий рыночный режим. Затем сервис вызывает `internal/ai.Client`.
+
+Для локальной демонстрации по умолчанию используется:
+
+```bash
+AI_MODE=fallback
+```
+
+Для включения внешнего AI-агента нужно задать:
+
+```bash
+AI_MODE=openai
+AI_PROVIDER=openai
+AI_MODEL=gpt-5.2
+AI_API_ENDPOINT=https://api.openai.com/v1/responses
+AI_API_KEY=<your_api_key>
+AI_TIMEOUT_SECONDS=30
+```
+
+В режиме `openai` backend отправляет запрос в Responses API и требует структурированный JSON с полями `direction`, `strength`, `confidence`, `explanation`, `key_factors`. API-ключ не сохраняется в БД; в `prepared_request_json` сохраняется только безопасное описание payload без секрета.
+
+Опционально можно задать `AI_REASONING_EFFORT` и `AI_TEXT_VERBOSITY`, если выбранная модель поддерживает эти параметры. Если они пустые, backend не добавляет их в запрос.
+
 ## Как backend используется во frontend MVP
 
 Frontend экранов `login`, `dashboard`, `assets`, `asset details`, `news/events` и `forecasts` опирается на backend так:
@@ -67,25 +96,25 @@ Frontend экранов `login`, `dashboard`, `assets`, `asset details`, `news/e
 - `assets` -> `GET /api/v1/assets` с дополнительным enrichment из `GET /api/v1/dashboard/summary`
 - `asset details` -> `GET /api/v1/assets/{ticker}`, `GET /api/v1/assets/{ticker}/prices`, `GET /api/v1/assets/{ticker}/indicators`, enrichment из `GET /api/v1/dashboard/summary`
 - `news/events` -> `GET /api/v1/news`, `GET /api/v1/events`
-- `forecasts` -> `GET /api/v1/forecasts/latest`, `GET /api/v1/dashboard/summary`
+- `forecasts` -> `GET /api/v1/forecasts/latest`, `GET /api/v1/dashboard/summary`, `POST /api/v1/forecasts/generate`
 
 Для демонстрации это важно: frontend теперь выдерживает частичную недоступность вторичных endpoint'ов и показывает понятные `loading`, `empty`, `error` и warning-состояния, но базовый сценарий всё равно зависит от запущенного backend и подготовленной БД.
 
 ## Подготовка к запуску
 
-Перед первым запуском нужно вручную подготовить PostgreSQL:
+Перед первым запуском нужно подготовить PostgreSQL:
 
 1. Создать базу данных `market_ai`, если она еще не создана.
-2. Применить миграции `02_product/backend/migrations/001-010` через `psql` или pgAdmin.
-3. Выставить переменные окружения:
+2. Выставить переменные окружения:
    - `DB_HOST`
    - `DB_PORT`
    - `DB_USER`
    - `DB_PASSWORD`
    - `DB_NAME`
    - `DB_SSLMODE`
+   - `DB_MIGRATIONS_DIR`
 
-Встроенного migration runner в backend пока нет, поэтому без ручного применения миграций сервис запустится, но начнет отдавать ошибки уровня БД по отсутствующим таблицам.
+Backend применяет SQL-миграции из `DB_MIGRATIONS_DIR` при старте. По умолчанию используется каталог `migrations`, поэтому стандартный запуск из `02_product/backend` не требует ручного применения файлов `001-010`.
 
 ## Запуск backend
 
@@ -94,11 +123,11 @@ cd 02_product/backend
 go run ./cmd/api
 ```
 
-При старте backend выполняет начальную синхронизацию цен, индикаторов, новостей и событий. На пустой или неподготовленной БД это приведет к warning-логам, поэтому миграции должны быть применены заранее.
+При старте backend сначала применяет миграции, затем выполняет начальную синхронизацию цен, индикаторов, новостей и событий. Если внешние источники временно недоступны, сервис продолжит запуск с warning-логами.
 
 ## Минимальный сценарий демонстрации
 
-1. Подготовить PostgreSQL и применить миграции.
+1. Подготовить PostgreSQL.
 2. Запустить backend.
 3. Если пользователя еще нет, создать его через `POST /api/v1/auth/register`.
 4. Запустить frontend из `02_product/frontend`.
@@ -110,6 +139,7 @@ go run ./cmd/api
    - asset details
    - news/events
    - forecasts
+   - формирование нового прогноза через кнопку `Сформировать прогноз`
 
 ## Локальная проверка
 
